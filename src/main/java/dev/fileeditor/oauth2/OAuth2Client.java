@@ -159,6 +159,11 @@ public interface OAuth2Client {
 	SessionController<? extends Session> getSessionController();
 
 	/**
+	 * Shutdown httpClient.
+	 */
+	void shutdown();
+
+	/**
 	 * Builder for creating OAuth2Client instances.
 	 *
 	 * <p>At minimum, the developer must provide a

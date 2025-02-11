@@ -215,6 +215,7 @@ public class OAuth2ClientImpl implements OAuth2Client {
 		return sessionController;
 	}
 
+	@Override
 	public void shutdown() {
 		httpClient.dispatcher().executorService().shutdown();
 	}
