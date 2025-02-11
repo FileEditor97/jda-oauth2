@@ -6,6 +6,8 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
 public class OAuth2Requester {
@@ -58,6 +60,24 @@ public class OAuth2Requester {
 			logSuccessfulRequest(request);
 			return value;
 		}
+	}
+
+	<T> CompletableFuture<T> returnAsync(OAuth2Action<T> request) {
+		OkHttpResponseFuture callback = new OkHttpResponseFuture();
+		httpClient.newCall(request.buildRequest()).enqueue(callback);
+
+		return callback.future.thenApply(response -> {
+			try (response) {
+				T value = request.handle(response);
+				logSuccessfulRequest(request);
+
+				if (value == null)
+					throw new NullPointerException("Value not found!");
+				return value;
+			} catch (Throwable t) {
+				throw new CompletionException(t);
+			}
+		});
 	}
 
 	private static void logSuccessfulRequest(OAuth2Action request) {

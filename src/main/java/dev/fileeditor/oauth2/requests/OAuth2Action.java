@@ -9,6 +9,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
@@ -22,10 +23,9 @@ import java.util.function.Consumer;
  * @author Kaidan Gustave
  */
 public abstract class OAuth2Action<T> {
-	protected static final Consumer DEFAULT_SUCCESS = t -> {};
-	protected static final Consumer<Throwable> DEFAULT_FAILURE = t -> {
+	protected final Consumer<T> DEFAULT_SUCCESS = t -> {};
+	protected static final Consumer<Throwable> DEFAULT_FAILURE = t ->
 		OAuth2Requester.LOGGER.error("Requester encountered an error while processing response!", t);
-	};
 
 	protected final OAuth2ClientImpl client;
 	protected final Method method;
@@ -120,6 +120,15 @@ public abstract class OAuth2Action<T> {
 	 */
 	public T complete() throws IOException {
 		return client.getRequester().submitSync(this);
+	}
+
+	/**
+	 * Asynchronously executes this OAuth2Action and returns future.
+	 *
+	 * @return CompletableFuture to be used.
+	 */
+	public CompletableFuture<T> getFuture() {
+		return client.getRequester().returnAsync(this);
 	}
 
 	/**
