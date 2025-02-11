@@ -1,7 +1,7 @@
 package dev.fileeditor.oauth2;
 
-import dev.fileeditor.oauth2.Session.Session;
-import dev.fileeditor.oauth2.Session.SessionController;
+import dev.fileeditor.oauth2.session.Session;
+import dev.fileeditor.oauth2.session.SessionController;
 import dev.fileeditor.oauth2.entities.OAuth2Guild;
 import dev.fileeditor.oauth2.entities.OAuth2User;
 import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl;
@@ -43,7 +43,7 @@ public interface OAuth2Client {
 	String generateAuthorizationURL(@NotNull String redirectUri, Scope... scopes);
 
 	/**
-	 * Starts a {@link dev.fileeditor.oauth2.Session.Session} with the provided code,
+	 * Starts a {@link dev.fileeditor.oauth2.session.Session} with the provided code,
 	 * state, and identifier. The state provided should be <i>unique</i> and provided through an
 	 * implementation of {@link StateController}.
 	 *
@@ -112,7 +112,7 @@ public interface OAuth2Client {
 	OAuth2Action<List<OAuth2Guild>> getGuilds(@NotNull Session session) throws MissingScopeException;
 
 	/**
-	 * Starts a {@link dev.fileeditor.oauth2.Session.Session} with the provided code,
+	 * Starts a {@link dev.fileeditor.oauth2.session.Session} with the provided code,
 	 * state, and identifier. The state provided should be <i>unique</i> and provided through an
 	 * implementation of {@link StateController}.
 	 *

@@ -2,7 +2,7 @@ package dev.fileeditor.oauth2.entities.impl;
 
 import dev.fileeditor.oauth2.OAuth2Client;
 import dev.fileeditor.oauth2.Scope;
-import dev.fileeditor.oauth2.Session.Session;
+import dev.fileeditor.oauth2.session.Session;
 import dev.fileeditor.oauth2.entities.OAuth2User;
 import dev.fileeditor.oauth2.exceptions.MissingScopeException;
 import net.dv8tion.jda.api.JDA;

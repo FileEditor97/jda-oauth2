@@ -2,10 +2,10 @@ package dev.fileeditor.oauth2.entities.impl;
 
 import dev.fileeditor.oauth2.OAuth2Client;
 import dev.fileeditor.oauth2.Scope;
-import dev.fileeditor.oauth2.Session.DefaultSessionController;
-import dev.fileeditor.oauth2.Session.Session;
-import dev.fileeditor.oauth2.Session.SessionController;
-import dev.fileeditor.oauth2.Session.SessionData;
+import dev.fileeditor.oauth2.session.DefaultSessionController;
+import dev.fileeditor.oauth2.session.Session;
+import dev.fileeditor.oauth2.session.SessionController;
+import dev.fileeditor.oauth2.session.SessionData;
 import dev.fileeditor.oauth2.entities.OAuth2Guild;
 import dev.fileeditor.oauth2.entities.OAuth2User;
 import dev.fileeditor.oauth2.exceptions.InvalidStateException;

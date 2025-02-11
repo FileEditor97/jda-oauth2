@@ -1,4 +1,4 @@
-package dev.fileeditor.oauth2.Session;
+package dev.fileeditor.oauth2.session;
 
 import dev.fileeditor.oauth2.Scope;
 import org.jetbrains.annotations.NotNull;

@@ -1,7 +1,7 @@
 package dev.fileeditor.oauth2.entities;
 
 import dev.fileeditor.oauth2.OAuth2Client;
-import dev.fileeditor.oauth2.Session.Session;
+import dev.fileeditor.oauth2.session.Session;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.sharding.ShardManager;
