@@ -6,10 +6,12 @@ import dev.fileeditor.oauth2.entities.OAuth2Guild;
 import dev.fileeditor.oauth2.entities.OAuth2User;
 import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl;
 import dev.fileeditor.oauth2.exceptions.InvalidStateException;
+import dev.fileeditor.oauth2.exceptions.MissingScopeException;
 import dev.fileeditor.oauth2.requests.OAuth2Action;
 import dev.fileeditor.oauth2.state.StateController;
 import net.dv8tion.jda.internal.utils.Checks;
 import okhttp3.OkHttpClient;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -37,7 +39,8 @@ public interface OAuth2Client {
 	 *
 	 * @return The generated authorization URL.
 	 */
-	String generateAuthorizationURL(String redirectUri, Scope... scopes);
+	@NotNull
+	String generateAuthorizationURL(@NotNull String redirectUri, Scope... scopes);
 
 	/**
 	 * Starts a {@link dev.fileeditor.oauth2.Session.Session} with the provided code,
@@ -64,7 +67,8 @@ public interface OAuth2Client {
 	 * @throws InvalidStateException
 	 *         If the state, when consumed by this client's StateController, results in a {@code null} redirect URI.
 	 */
-	OAuth2Action<Session> startSession(String code, String state, String identifier, Scope... scopes) throws InvalidStateException;
+	@NotNull
+	OAuth2Action<Session> startSession(@NotNull String code, @NotNull String state, @NotNull String identifier, Scope... scopes) throws InvalidStateException;
 
 	/**
 	 * Requests a {@link OAuth2User}
@@ -79,7 +83,8 @@ public interface OAuth2Client {
 	 * @return A {@link OAuth2Action} for
 	 *         the OAuth2User to be retrieved.
 	 */
-	OAuth2Action<OAuth2User> getUser(Session session);
+	@NotNull
+	OAuth2Action<OAuth2User> getUser(@NotNull Session session);
 
 	/**
 	 * Requests a list of {@link OAuth2Guild OAuth2Guilds}
@@ -91,7 +96,7 @@ public interface OAuth2Client {
 	 * <p>Note that this can only be performed for Sessions who have the necessary
 	 * {@link Scope#GUILDS 'guilds'} scope.
 	 * <br>Trying to call this using a Session without the scope will cause a
-	 * {@link dev.fileeditor.oauth2.exceptions.MissingScopeException}
+	 * {@link MissingScopeException}
 	 * to be thrown.
 	 *
 	 * @param  session
@@ -100,10 +105,27 @@ public interface OAuth2Client {
 	 * @return A {@link OAuth2Action} for
 	 *         the OAuth2Guilds to be retrieved.
 	 *
-	 * @throws dev.fileeditor.oauth2.exceptions.MissingScopeException
+	 * @throws MissingScopeException
 	 *         If the provided Session does not have the 'guilds' scope.
 	 */
-	OAuth2Action<List<OAuth2Guild>> getGuilds(Session session);
+	@NotNull
+	OAuth2Action<List<OAuth2Guild>> getGuilds(@NotNull Session session) throws MissingScopeException;
+
+	/**
+	 * Starts a {@link dev.fileeditor.oauth2.Session.Session} with the provided code,
+	 * state, and identifier. The state provided should be <i>unique</i> and provided through an
+	 * implementation of {@link StateController}.
+	 *
+	 * <p>If the state has already been consumed by the StateController using
+	 * {@link StateController#consumeState(String) StateController#consumeState},
+	 * then it should return {@code null} when provided the same state, so that this may throw a
+	 * {@link InvalidStateException InvalidStateException} to signify it has
+	 * been consumed.
+	 *
+	 * @param  session
+	 *         The Session to be revoked.
+	 */
+	void revokeSession(@NotNull Session session);
 
 	/**
 	 * Gets the client ID for this OAuth2Client.
@@ -117,6 +139,7 @@ public interface OAuth2Client {
 	 *
 	 * @return The client's secret.
 	 */
+	@NotNull
 	String getSecret();
 
 	/**
@@ -124,6 +147,7 @@ public interface OAuth2Client {
 	 *
 	 * @return The client's StateController.
 	 */
+	@NotNull
 	StateController getStateController();
 
 	/**
@@ -131,7 +155,8 @@ public interface OAuth2Client {
 	 *
 	 * @return The client's SessionController.
 	 */
-	SessionController getSessionController();
+	@NotNull
+	SessionController<? extends Session> getSessionController();
 
 	/**
 	 * Builder for creating OAuth2Client instances.
@@ -142,7 +167,7 @@ public interface OAuth2Client {
 	class Builder {
 		private long clientId = -1;
 		private String clientSecret;
-		private SessionController sessionController;
+		private SessionController<? extends Session> sessionController;
 		private StateController stateController;
 		private OkHttpClient client;
 
@@ -159,8 +184,7 @@ public interface OAuth2Client {
 		 *             <li>The Client Secret is empty.</li>
 		 *         </ul>
 		 */
-		public OAuth2Client build()
-		{
+		public OAuth2Client build() {
 			Checks.check(clientId >= 0, "Client ID is invalid!");
 			Checks.notEmpty(clientSecret, "Client Secret");
 			return new OAuth2ClientImpl(clientId, clientSecret, sessionController, stateController, client);
@@ -174,8 +198,7 @@ public interface OAuth2Client {
 		 *
 		 * @return This builder.
 		 */
-		public Builder setClientId(long clientId)
-		{
+		public Builder setClientId(long clientId) {
 			this.clientId = clientId;
 			return this;
 		}
@@ -188,8 +211,7 @@ public interface OAuth2Client {
 		 *
 		 * @return This builder.
 		 */
-		public Builder setClientSecret(String clientSecret)
-		{
+		public Builder setClientSecret(@NotNull String clientSecret) {
 			this.clientSecret = clientSecret;
 			return this;
 		}
@@ -202,8 +224,7 @@ public interface OAuth2Client {
 		 *
 		 * @return This builder.
 		 */
-		public Builder setSessionController(SessionController sessionController)
-		{
+		public Builder setSessionController(SessionController<? extends Session> sessionController) {
 			this.sessionController = sessionController;
 			return this;
 		}
@@ -216,8 +237,7 @@ public interface OAuth2Client {
 		 *
 		 * @return This builder.
 		 */
-		public Builder setStateController(StateController stateController)
-		{
+		public Builder setStateController(StateController stateController) {
 			this.stateController = stateController;
 			return this;
 		}
@@ -231,8 +251,7 @@ public interface OAuth2Client {
 		 *
 		 * @return This builder.
 		 */
-		public Builder setOkHttpClient(OkHttpClient client)
-		{
+		public Builder setOkHttpClient(OkHttpClient client) {
 			this.client = client;
 			return this;
 		}

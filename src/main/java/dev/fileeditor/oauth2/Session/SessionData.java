@@ -1,6 +1,7 @@
 package dev.fileeditor.oauth2.Session;
 
 import dev.fileeditor.oauth2.Scope;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -9,7 +10,6 @@ import java.time.format.DateTimeFormatter;
  * Contains various data necessary for creating a {@link Session} using a {@link SessionController}.
  */
 public class SessionData {
-
 	private final String identifier, accessToken, refreshToken, tokenType;
 	private final OffsetDateTime expiration;
 	private final Scope[] scopes;
@@ -26,6 +26,7 @@ public class SessionData {
 	/**
 	 * @return The session's identifier.
 	 */
+	@NotNull
 	public String getIdentifier() {
 		return identifier;
 	}
@@ -33,6 +34,7 @@ public class SessionData {
 	/**
 	 * @return The session's access token.
 	 */
+	@NotNull
 	public String getAccessToken() {
 		return accessToken;
 	}
@@ -40,6 +42,7 @@ public class SessionData {
 	/**
 	 * @return The session's refresh token.
 	 */
+	@NotNull
 	public String getRefreshToken() {
 		return refreshToken;
 	}
@@ -47,6 +50,7 @@ public class SessionData {
 	/**
 	 * @return The session's token type.
 	 */
+	@NotNull
 	public String getTokenType() {
 		return tokenType;
 	}
@@ -54,6 +58,7 @@ public class SessionData {
 	/**
 	 * @return The session's expiration time.
 	 */
+	@NotNull
 	public OffsetDateTime getExpiration() {
 		return expiration;
 	}
@@ -61,6 +66,7 @@ public class SessionData {
 	/**
 	 * @return The session's Scopes.
 	 */
+	@NotNull
 	public Scope[] getScopes() {
 		return scopes;
 	}

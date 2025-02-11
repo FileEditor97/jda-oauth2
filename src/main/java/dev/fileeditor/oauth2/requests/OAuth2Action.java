@@ -7,6 +7,8 @@ import okhttp3.Headers;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -118,17 +120,20 @@ public abstract class OAuth2Action<T> {
 	 * @return the value constructed from the response
 	 * @throws java.io.IOException on unsuccessful execution
 	 */
+	@Nullable
 	public T complete() throws IOException {
 		return client.getRequester().submitSync(this);
 	}
 
 	/**
-	 * Asynchronously executes this OAuth2Action and returns future.
+	 * Submits a Request for execution and provides a CompletableFuture representing its completion task.
+	 * Cancelling the returned Future will result in the cancellation of the Request!
 	 *
-	 * @return CompletableFuture to be used.
+	 * @return CompletableFuture to be used.z
 	 */
-	public CompletableFuture<T> getFuture() {
-		return client.getRequester().returnAsync(this);
+	@NotNull
+	public CompletableFuture<T> future() {
+		return client.getRequester().submit(this);
 	}
 
 	/**
@@ -137,6 +142,7 @@ public abstract class OAuth2Action<T> {
 	 *
 	 * @return The OAuth2Client responsible for creating this.
 	 */
+	@NotNull
 	public OAuth2ClientImpl getClient() {
 		return client;
 	}

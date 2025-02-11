@@ -3,6 +3,7 @@ package dev.fileeditor.oauth2.requests;
 import net.dv8tion.jda.internal.utils.JDALogger;
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.util.function.Consumer;
 
 public class OAuth2Requester {
 	protected static final Logger LOGGER = JDALogger.getLog(OAuth2Requester.class);
-	protected static final String USER_AGENT = "OAuth2 util(git @fileeditor97)";
+	protected static final String USER_AGENT = "OAuth2 Util (git @fileeditor97)";
 	protected static final RequestBody EMPTY_BODY = RequestBody.create(new byte[0]);
 
 	private final OkHttpClient httpClient;
@@ -54,15 +55,17 @@ public class OAuth2Requester {
 		});
 	}
 
+	@Nullable
 	<T> T submitSync(OAuth2Action<T> request) throws IOException {
-		try(Response response = httpClient.newCall(request.buildRequest()).execute()) {
+		try (Response response = httpClient.newCall(request.buildRequest()).execute()) {
 			T value = request.handle(response);
 			logSuccessfulRequest(request);
 			return value;
 		}
 	}
 
-	<T> CompletableFuture<T> returnAsync(OAuth2Action<T> request) {
+	@NotNull
+	<T> CompletableFuture<T> submit(OAuth2Action<T> request) {
 		OkHttpResponseFuture callback = new OkHttpResponseFuture();
 		httpClient.newCall(request.buildRequest()).enqueue(callback);
 
@@ -80,7 +83,7 @@ public class OAuth2Requester {
 		});
 	}
 
-	private static void logSuccessfulRequest(OAuth2Action request) {
+	private static <T> void logSuccessfulRequest(OAuth2Action<T> request) {
 		LOGGER.debug("Got a response for {} - {}\nHeaders: {}", request.getMethod(),
 			request.getUrl(), request.getHeaders());
 	}

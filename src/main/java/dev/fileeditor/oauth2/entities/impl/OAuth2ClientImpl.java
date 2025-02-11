@@ -21,6 +21,7 @@ import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
 import net.dv8tion.jda.internal.utils.IOUtil;
 import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -36,12 +37,12 @@ public class OAuth2ClientImpl implements OAuth2Client {
 
 	private final long clientId;
 	private final String clientSecret;
-	private final SessionController sessionController;
+	private final SessionController<? extends Session> sessionController;
 	private final StateController stateController;
 	private final OkHttpClient httpClient;
 	private final OAuth2Requester requester;
 
-	public OAuth2ClientImpl(long clientId, String clientSecret, SessionController sessionController,
+	public OAuth2ClientImpl(long clientId, String clientSecret, SessionController<? extends Session> sessionController,
 							StateController stateController, OkHttpClient httpClient) {
 		Checks.check(clientId >= 0, "Invalid Client ID");
 		Checks.notNull(clientSecret, "Client Secret");
@@ -54,16 +55,18 @@ public class OAuth2ClientImpl implements OAuth2Client {
 		this.requester = new OAuth2Requester(this.httpClient);
 	}
 
+	@NotNull
 	@Override
-	public String generateAuthorizationURL(String redirectUri, Scope... scopes) {
+	public String generateAuthorizationURL(@NotNull String redirectUri, Scope... scopes) {
 		Checks.notNull(redirectUri, "Redirect URI");
 
 		return OAuth2URL.AUTHORIZE.compile(clientId, EncodingUtil.encodeUTF8(redirectUri),
 			Scope.join(scopes), stateController.generateNewState(redirectUri));
 	}
 
+	@NotNull
 	@Override
-	public OAuth2Action<Session> startSession(String code, String state, String identifier, Scope... scopes) throws InvalidStateException {
+	public OAuth2Action<Session> startSession(@NotNull String code, @NotNull String state, @NotNull String identifier, Scope... scopes) throws InvalidStateException {
 		Checks.notEmpty(code, "code");
 		Checks.notEmpty(state, "state");
 
@@ -81,8 +84,8 @@ public class OAuth2ClientImpl implements OAuth2Client {
 
 			@Override
 			protected RequestBody getBody() {
-				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, EncodingUtil.encodeUTF8(redirectUri), code, clientSecret,
-						Scope.join(true, scopes)),
+				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, clientSecret,
+						EncodingUtil.encodeUTF8(redirectUri), code, Scope.join(true, scopes)),
 					MediaType.parse("application/x-www-form-urlencoded"));
 			}
 
@@ -106,11 +109,11 @@ public class OAuth2ClientImpl implements OAuth2Client {
 		};
 	}
 
+	@NotNull
 	@Override
-	public OAuth2Action<OAuth2User> getUser(Session session) {
+	public OAuth2Action<OAuth2User> getUser(@NotNull Session session) {
 		Checks.notNull(session, "Session");
 		return new OAuth2Action<>(this, Method.GET, OAuth2URL.CURRENT_USER.compile()) {
-
 			@Override
 			protected Headers getHeaders() {
 				return Headers.of("Authorization", generateAuthorizationHeader(session));
@@ -131,8 +134,9 @@ public class OAuth2ClientImpl implements OAuth2Client {
 		};
 	}
 
+	@NotNull
 	@Override
-	public OAuth2Action<List<OAuth2Guild>> getGuilds(Session session) {
+	public OAuth2Action<List<OAuth2Guild>> getGuilds(@NotNull Session session) throws MissingScopeException {
 		Checks.notNull(session, "session");
 		if (!Scope.contains(session.getScopes(), Scope.GUILDS))
 			throw new MissingScopeException("get guilds for a Session", Scope.GUILDS);
@@ -166,22 +170,48 @@ public class OAuth2ClientImpl implements OAuth2Client {
 	}
 
 	@Override
+	public void revokeSession(@NotNull Session session) {
+		Checks.notNull(session, "session");
+
+		OAuth2URL oAuth2URL = OAuth2URL.TOKEN_REVOKE;
+
+		new OAuth2Action<Void>(this, Method.POST, oAuth2URL.getRouteWithBaseUrl()) {
+			@Override
+			protected RequestBody getBody() {
+				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, clientSecret, session.getAccessToken()),
+					MediaType.parse("application/x-www-form-urlencoded"));
+			}
+
+			@Override
+			protected Void handle(Response response) throws IOException {
+				if (!response.isSuccessful())
+					throw failure(response);
+
+				return null;
+			}
+		}.queue();
+	}
+
+	@Override
 	public long getId() {
 		return clientId;
 	}
 
 	@Override
+	@NotNull
 	public String getSecret() {
 		return clientSecret;
 	}
 
 	@Override
+	@NotNull
 	public StateController getStateController() {
 		return stateController;
 	}
 
 	@Override
-	public SessionController getSessionController() {
+	@NotNull
+	public SessionController<? extends Session> getSessionController() {
 		return sessionController;
 	}
 

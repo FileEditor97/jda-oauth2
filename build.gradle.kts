@@ -62,7 +62,7 @@ tasks.shadowJar {
         )
     }
 
-    dependsOn(tasks.javadoc)
+    finalizedBy("sourcesJar", "javadocJar")
 }
 
 tasks.compileJava {
