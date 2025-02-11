@@ -8,6 +8,7 @@ import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl;
 import dev.fileeditor.oauth2.exceptions.InvalidStateException;
 import dev.fileeditor.oauth2.exceptions.MissingScopeException;
 import dev.fileeditor.oauth2.requests.OAuth2Action;
+import dev.fileeditor.oauth2.session.SessionData;
 import dev.fileeditor.oauth2.state.StateController;
 import net.dv8tion.jda.internal.utils.Checks;
 import okhttp3.OkHttpClient;
@@ -112,15 +113,18 @@ public interface OAuth2Client {
 	OAuth2Action<List<OAuth2Guild>> getGuilds(@NotNull Session session) throws MissingScopeException;
 
 	/**
-	 * Starts a {@link dev.fileeditor.oauth2.session.Session} with the provided code,
-	 * state, and identifier. The state provided should be <i>unique</i> and provided through an
-	 * implementation of {@link StateController}.
+	 * Refresh {@link dev.fileeditor.oauth2.session.Session Session's} token.
 	 *
-	 * <p>If the state has already been consumed by the StateController using
-	 * {@link StateController#consumeState(String) StateController#consumeState},
-	 * then it should return {@code null} when provided the same state, so that this may throw a
-	 * {@link InvalidStateException InvalidStateException} to signify it has
-	 * been consumed.
+	 * @param  session
+	 *         The Session to be refreshed.
+	 *
+	 * @return A {@link OAuth2Action} for the Session to start.
+	 */
+	@NotNull
+	OAuth2Action<Session> refreshSession(@NotNull SessionData session);
+
+	/**
+	 * Revoke {@link dev.fileeditor.oauth2.session.Session} token.
 	 *
 	 * @param  session
 	 *         The Session to be revoked.

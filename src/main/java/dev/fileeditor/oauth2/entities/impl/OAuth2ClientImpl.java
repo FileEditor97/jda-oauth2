@@ -96,11 +96,7 @@ public class OAuth2ClientImpl implements OAuth2Client {
 
 				JSONObject body = new JSONObject(new JSONTokener(IOUtil.getBody(response)));
 
-				String[] scopeStrings = body.getString("scope").split(" ");
-				Scope[] scopes = new Scope[scopeStrings.length];
-				for (int i = 0; i < scopeStrings.length; i++) {
-					scopes[i] = Scope.from(scopeStrings[i]);
-				}
+				Scope[] scopes = parseScopes(body.getString("scope"));
 
 				return sessionController.createSession(new SessionData(identifier,
 					body.getString("access_token"), body.getString("refresh_token"),
@@ -169,6 +165,41 @@ public class OAuth2ClientImpl implements OAuth2Client {
 		};
 	}
 
+	@NotNull
+	@Override
+	public OAuth2Action<Session> refreshSession(@NotNull SessionData sessionData) {
+		Checks.notNull(sessionData, "session");
+
+		OAuth2URL oAuth2URL = OAuth2URL.TOKEN_REFRESH;
+
+		return new OAuth2Action<>(this, Method.POST, oAuth2URL.getRouteWithBaseUrl()) {
+			@Override
+			protected Headers getHeaders() {
+				return Headers.of("Content-Type", "x-www-form-urlencoded");
+			}
+
+			@Override
+			protected RequestBody getBody() {
+				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, clientSecret, sessionData.getRefreshToken()),
+					MediaType.parse("application/x-www-form-urlencoded"));
+			}
+
+			@Override
+			protected Session handle(Response response) throws IOException {
+				if (!response.isSuccessful())
+					throw failure(response);
+
+				JSONObject body = new JSONObject(new JSONTokener(IOUtil.getBody(response)));
+
+				Scope[] scopes = parseScopes(body.getString("scope"));
+
+				return sessionController.createSession(new SessionData(sessionData.getIdentifier(),
+					body.getString("access_token"), body.getString("refresh_token"),
+					body.getString("token_type"), OffsetDateTime.now().plusSeconds(body.getInt("expires_in")), scopes));
+			}
+		};
+	}
+
 	@Override
 	public void revokeSession(@NotNull Session session) {
 		Checks.notNull(session, "session");
@@ -176,6 +207,11 @@ public class OAuth2ClientImpl implements OAuth2Client {
 		OAuth2URL oAuth2URL = OAuth2URL.TOKEN_REVOKE;
 
 		new OAuth2Action<Void>(this, Method.POST, oAuth2URL.getRouteWithBaseUrl()) {
+			@Override
+			protected Headers getHeaders() {
+				return Headers.of("Content-Type", "x-www-form-urlencoded");
+			}
+
 			@Override
 			protected RequestBody getBody() {
 				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, clientSecret, session.getAccessToken()),
@@ -239,5 +275,14 @@ public class OAuth2ClientImpl implements OAuth2Client {
 	// token-type and 'Y' is the session's access token.
 	private String generateAuthorizationHeader(Session session) {
 		return String.format("%s %s", session.getTokenType(), session.getAccessToken());
+	}
+
+	private Scope[] parseScopes(String text) {
+		String[] scopeStrings = text.split(" ");
+		Scope[] scopes = new Scope[scopeStrings.length];
+		for (int i = 0; i < scopeStrings.length; i++) {
+			scopes[i] = Scope.from(scopeStrings[i]);
+		}
+		return scopes;
 	}
 }
