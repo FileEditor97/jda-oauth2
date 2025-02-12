@@ -24,6 +24,11 @@ public class DefaultSessionController implements SessionController<DefaultSessio
 		return created;
 	}
 
+	@Override
+	public void endSession(String identifier) {
+		sessions.remove(identifier);
+	}
+
 	public class DefaultSession implements Session {
 		private final String accessToken, refreshToken, tokenType;
 		private final OffsetDateTime expiration;

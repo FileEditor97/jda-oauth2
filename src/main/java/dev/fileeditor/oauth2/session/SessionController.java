@@ -46,4 +46,11 @@ public interface SessionController<S extends Session> {
 	 */
 	S createSession(SessionData data);
 
+	/**
+	 * End current session.
+	 *
+	 * @param identifier Session ID.
+	 */
+	void endSession(String identifier);
+
 }
