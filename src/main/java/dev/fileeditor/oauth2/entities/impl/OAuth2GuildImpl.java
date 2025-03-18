@@ -9,15 +9,16 @@ import java.util.EnumSet;
 public class OAuth2GuildImpl implements OAuth2Guild {
 	private final OAuth2Client client;
 	private final long id, permissions;
-	private final String name, icon;
+	private final String name, icon, banner;
 	private final boolean owner;
 	private final int presenceCount, memberCount;
 
-	public OAuth2GuildImpl(OAuth2Client client, long id, String name, String icon, boolean owner, long permissions, int presenceCount, int memberCount) {
+	public OAuth2GuildImpl(OAuth2Client client, long id, String name, String icon, String banner, boolean owner, long permissions, int presenceCount, int memberCount) {
 		this.client = client;
 		this.id = id;
 		this.name = name;
 		this.icon = icon;
+		this.banner = banner;
 		this.owner = owner;
 		this.permissions = permissions;
 		this.presenceCount = presenceCount;
@@ -47,6 +48,16 @@ public class OAuth2GuildImpl implements OAuth2Guild {
 	@Override
 	public String getIconUrl() {
 		return icon == null ? null : "https://cdn.discordapp.com/icons/" + id + "/" + icon + ".png";
+	}
+
+	@Override
+	public String getBannerId() {
+		return banner;
+	}
+
+	@Override
+	public String getBannerUrl() {
+		return banner == null ? null : "https://cdn.discordapp.com/banners/" + id + "/" + banner + ".png";
 	}
 
 	@Override

@@ -14,7 +14,7 @@ public class OkHttpResponseFuture implements Callback {
 	public OkHttpResponseFuture() {}
 
 	@Override
-	public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+	public void onResponse(@NotNull Call call, @NotNull Response response) {
 		future.complete(response);
 	}
 

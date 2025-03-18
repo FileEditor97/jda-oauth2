@@ -42,6 +42,20 @@ public interface OAuth2Guild extends ISnowflake {
 	String getIconUrl();
 
 	/**
+	 * Gets the Guild's banner ID, or {@code null} if the Guild does not have a banner.
+	 *
+	 * @return The Guild's banner ID.
+	 */
+	String getBannerId();
+
+	/**
+	 * Gets the Guild's banner URL, or {@code null} if the Guild does not have a banner.
+	 *
+	 * @return The Guild's banner URL.
+	 */
+	String getBannerUrl();
+
+	/**
 	 * Gets the Session User's raw permission value for the Guild.
 	 *
 	 * @return The Session User's raw permission value for the Guild.
