@@ -1,13 +1,13 @@
 package dev.fileeditor.oauth2;
 
-import dev.fileeditor.oauth2.session.Session;
-import dev.fileeditor.oauth2.session.SessionController;
 import dev.fileeditor.oauth2.entities.OAuth2Guild;
 import dev.fileeditor.oauth2.entities.OAuth2User;
 import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl;
 import dev.fileeditor.oauth2.exceptions.InvalidStateException;
 import dev.fileeditor.oauth2.exceptions.MissingScopeException;
 import dev.fileeditor.oauth2.requests.OAuth2Action;
+import dev.fileeditor.oauth2.session.Session;
+import dev.fileeditor.oauth2.session.SessionController;
 import dev.fileeditor.oauth2.session.SessionData;
 import dev.fileeditor.oauth2.state.StateController;
 import net.dv8tion.jda.internal.utils.Checks;
