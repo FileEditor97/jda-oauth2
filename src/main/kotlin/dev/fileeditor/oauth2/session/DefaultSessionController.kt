@@ -1,78 +1,56 @@
-package dev.fileeditor.oauth2.session;
+package dev.fileeditor.oauth2.session
 
-import dev.fileeditor.oauth2.Scope;
-
-import java.time.OffsetDateTime;
-import java.util.HashMap;
+import dev.fileeditor.oauth2.Scope
+import dev.fileeditor.oauth2.session.DefaultSessionController.DefaultSession
+import java.time.OffsetDateTime
 
 /**
- * The default {@link SessionController} implementation.
+ * The default [SessionController] implementation.
  */
-public class DefaultSessionController implements SessionController<DefaultSessionController.DefaultSession> {
+class DefaultSessionController : SessionController<DefaultSession> {
+    private val sessions = HashMap<String, DefaultSession>()
 
-	private final HashMap<String, DefaultSession> sessions = new HashMap<>();
+    override fun getSession(identifier: String): DefaultSession? {
+        return sessions[identifier]
+    }
 
-	@Override
-	public DefaultSession getSession(String identifier) {
-		return sessions.get(identifier);
-	}
+    override fun createSession(data: SessionData): DefaultSession {
+        val created = DefaultSession(data)
+        sessions[data.identifier] = created
+        return created
+    }
 
-	@Override
-	public DefaultSession createSession(SessionData data) {
-		DefaultSession created = new DefaultSession(data);
-		sessions.put(data.getIdentifier(), created);
-		return created;
-	}
+    override fun endSession(identifier: String) {
+        sessions.remove(identifier)
+    }
 
-	@Override
-	public void endSession(String identifier) {
-		sessions.remove(identifier);
-	}
+    inner class DefaultSession : Session {
+        override val accessToken: String
+        override val refreshToken: String
+        override val tokenType: String
+        override val expiration: OffsetDateTime
+        override val scopes: Array<Scope>
 
-	public class DefaultSession implements Session {
-		private final String accessToken, refreshToken, tokenType;
-		private final OffsetDateTime expiration;
-		private final Scope[] scopes;
+        private constructor(
+            accessToken: String,
+            refreshToken: String,
+            tokenType: String,
+            expiration: OffsetDateTime,
+            scopes: Array<Scope>
+        ) {
+            this.accessToken = accessToken
+            this.refreshToken = refreshToken
+            this.tokenType = tokenType
+            this.expiration = expiration
+            this.scopes = scopes
+        }
 
-		private DefaultSession(String accessToken, String refreshToken, String tokenType, OffsetDateTime expiration, Scope[] scopes) {
-			this.accessToken = accessToken;
-			this.refreshToken = refreshToken;
-			this.tokenType = tokenType;
-			this.expiration = expiration;
-			this.scopes = scopes;
-		}
-
-		private DefaultSession(SessionData data) {
-			this.accessToken = data.getAccessToken();
-			this.refreshToken = data.getRefreshToken();
-			this.tokenType = data.getTokenType();
-			this.expiration = data.getExpiration();
-			this.scopes = data.getScopes();
-		}
-
-		@Override
-		public String getAccessToken() {
-			return accessToken;
-		}
-
-		@Override
-		public String getRefreshToken() {
-			return refreshToken;
-		}
-
-		@Override
-		public Scope[] getScopes() {
-			return scopes;
-		}
-
-		@Override
-		public String getTokenType() {
-			return tokenType;
-		}
-
-		@Override
-		public OffsetDateTime getExpiration() {
-			return expiration;
-		}
-	}
+        constructor(data: SessionData) {
+            this.accessToken = data.accessToken
+            this.refreshToken = data.refreshToken
+            this.tokenType = data.tokenType
+            this.expiration = data.expiration
+            this.scopes = data.scopes
+        }
+    }
 }

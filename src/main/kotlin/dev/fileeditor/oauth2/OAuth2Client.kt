@@ -1,268 +1,266 @@
-package dev.fileeditor.oauth2;
+package dev.fileeditor.oauth2
 
-import dev.fileeditor.oauth2.entities.OAuth2Guild;
-import dev.fileeditor.oauth2.entities.OAuth2User;
-import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl;
-import dev.fileeditor.oauth2.exceptions.InvalidStateException;
-import dev.fileeditor.oauth2.exceptions.MissingScopeException;
-import dev.fileeditor.oauth2.requests.OAuth2Action;
-import dev.fileeditor.oauth2.session.Session;
-import dev.fileeditor.oauth2.session.SessionController;
-import dev.fileeditor.oauth2.session.SessionData;
-import dev.fileeditor.oauth2.state.StateController;
-import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.OkHttpClient;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.List;
+import dev.fileeditor.oauth2.entities.OAuth2Guild
+import dev.fileeditor.oauth2.entities.OAuth2User
+import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl
+import dev.fileeditor.oauth2.exceptions.InvalidStateException
+import dev.fileeditor.oauth2.exceptions.MissingScopeException
+import dev.fileeditor.oauth2.requests.OAuth2Action
+import dev.fileeditor.oauth2.session.Session
+import dev.fileeditor.oauth2.session.SessionController
+import dev.fileeditor.oauth2.session.SessionData
+import dev.fileeditor.oauth2.state.StateController
+import net.dv8tion.jda.internal.utils.Checks
+import okhttp3.OkHttpClient
 
 /**
  * The central controller for OAuth2 state and session management using the Discord API.
  *
- * <p>OAuth2Client's are made using a {@link OAuth2Client.Builder},
- * and sessions can be appended using {@link OAuth2Client#startSession(String, String, String, Scope...)}.
+ *
+ * OAuth2Client's are made using a [OAuth2Client.Builder],
+ * and sessions can be appended using [OAuth2Client.startSession].
  */
-public interface OAuth2Client {
+interface OAuth2Client {
+    /**
+     * Generates a formatted authorization URL from the provided redirect URI fragment
+     * and [Scopes][Scope].
+     *
+     * @param  redirectUri
+     * The redirect URI.
+     * @param  scopes
+     * The provided scopes.
+     *
+     * @return The generated authorization URL.
+     */
+    fun generateAuthorizationURL(redirectUri: String, vararg scopes: Scope): String
 
-	/**
-	 * The REST version targeted by JDA-Utilities OAuth2.
-	 */
-	int DISCORD_REST_VERSION = 10;
+    /**
+     * Starts a [dev.fileeditor.oauth2.session.Session] with the provided code,
+     * state, and identifier. The state provided should be *unique* and provided through an
+     * implementation of [StateController].
+     *
+     *
+     * If the state has already been consumed by the StateController using
+     * [StateController#consumeState][StateController.consumeState],
+     * then it should return `null` when provided the same state, so that this may throw a
+     * [InvalidStateException] to signify it has
+     * been consumed.
+     *
+     * @param  code
+     * The code for the Session to start.
+     * @param  state
+     * The state for the Session to start.
+     * @param  identifier
+     * The identifier for the Session to start.
+     * @param  scopes
+     * The provided scopes.
+     *
+     * @return A [OAuth2Action] for the Session to start.
+     *
+     * @throws InvalidStateException
+     * If the state, when consumed by this client's StateController, results in a `null` redirect URI.
+     */
+    @Throws(InvalidStateException::class)
+    fun startSession(code: String, state: String, identifier: String, vararg scopes: Scope): OAuth2Action<Session>
 
-	/**
-	 * Generates a formatted authorization URL from the provided redirect URI fragment
-	 * and {@link Scope Scopes}.
-	 *
-	 * @param  redirectUri
-	 *         The redirect URI.
-	 * @param  scopes
-	 *         The provided scopes.
-	 *
-	 * @return The generated authorization URL.
-	 */
-	@NotNull
-	String generateAuthorizationURL(@NotNull String redirectUri, Scope... scopes);
+    /**
+     * Requests a [OAuth2User]
+     * from the [Session].
+     *
+     *
+     * All Sessions should handle an individual Discord User, and as such this method retrieves
+     * data on that User when the session is provided.
+     *
+     * @param  session
+     * The Session to get a OAuth2User for.
+     *
+     * @return A [OAuth2Action] for
+     * the OAuth2User to be retrieved.
+     */
+    fun getUser(session: Session): OAuth2Action<OAuth2User>
 
-	/**
-	 * Starts a {@link dev.fileeditor.oauth2.session.Session} with the provided code,
-	 * state, and identifier. The state provided should be <i>unique</i> and provided through an
-	 * implementation of {@link StateController}.
-	 *
-	 * <p>If the state has already been consumed by the StateController using
-	 * {@link StateController#consumeState(String) StateController#consumeState},
-	 * then it should return {@code null} when provided the same state, so that this may throw a
-	 * {@link InvalidStateException InvalidStateException} to signify it has
-	 * been consumed.
-	 *
-	 * @param  code
-	 *         The code for the Session to start.
-	 * @param  state
-	 *         The state for the Session to start.
-	 * @param  identifier
-	 *         The identifier for the Session to start.
-	 * @param  scopes
-	 *         The provided scopes.
-	 *
-	 * @return A {@link OAuth2Action} for the Session to start.
-	 *
-	 * @throws InvalidStateException
-	 *         If the state, when consumed by this client's StateController, results in a {@code null} redirect URI.
-	 */
-	@NotNull
-	OAuth2Action<Session> startSession(@NotNull String code, @NotNull String state, @NotNull String identifier, Scope... scopes) throws InvalidStateException;
+    /**
+     * Requests a list of [OAuth2Guilds][OAuth2Guild]
+     * from the [Session].
+     *
+     *
+     * All Sessions should handle an individual Discord User, and as such this method retrieves
+     * data on all the various Discord Guilds that user is a part of when the session is provided.
+     *
+     *
+     * Note that this can only be performed for Sessions who have the necessary
+     * [&#39;guilds&#39;][Scope.GUILDS] scope.
+     * <br></br>Trying to call this using a Session without the scope will cause a
+     * [MissingScopeException]
+     * to be thrown.
+     *
+     * @param  session
+     * The Session to get OAuth2Guilds for.
+     *
+     * @return A [OAuth2Action] for
+     * the OAuth2Guilds to be retrieved.
+     *
+     * @throws MissingScopeException
+     * If the provided Session does not have the 'guilds' scope.
+     */
+    @Throws(MissingScopeException::class)
+    fun getGuilds(session: Session): OAuth2Action<List<OAuth2Guild>>
 
-	/**
-	 * Requests a {@link OAuth2User}
-	 * from the {@link Session}.
-	 *
-	 * <p>All Sessions should handle an individual Discord User, and as such this method retrieves
-	 * data on that User when the session is provided.
-	 *
-	 * @param  session
-	 *         The Session to get a OAuth2User for.
-	 *
-	 * @return A {@link OAuth2Action} for
-	 *         the OAuth2User to be retrieved.
-	 */
-	@NotNull
-	OAuth2Action<OAuth2User> getUser(@NotNull Session session);
+    /**
+     * Refresh [Session&#39;s][dev.fileeditor.oauth2.session.Session] token.
+     *
+     * @param  session
+     * The Session to be refreshed.
+     *
+     * @return A [OAuth2Action] for the Session to start.
+     */
+    fun refreshSession(session: SessionData): OAuth2Action<Session>
 
-	/**
-	 * Requests a list of {@link OAuth2Guild OAuth2Guilds}
-	 * from the {@link Session}.
-	 *
-	 * <p>All Sessions should handle an individual Discord User, and as such this method retrieves
-	 * data on all the various Discord Guilds that user is a part of when the session is provided.
-	 *
-	 * <p>Note that this can only be performed for Sessions who have the necessary
-	 * {@link Scope#GUILDS 'guilds'} scope.
-	 * <br>Trying to call this using a Session without the scope will cause a
-	 * {@link MissingScopeException}
-	 * to be thrown.
-	 *
-	 * @param  session
-	 *         The Session to get OAuth2Guilds for.
-	 *
-	 * @return A {@link OAuth2Action} for
-	 *         the OAuth2Guilds to be retrieved.
-	 *
-	 * @throws MissingScopeException
-	 *         If the provided Session does not have the 'guilds' scope.
-	 */
-	@NotNull
-	OAuth2Action<List<OAuth2Guild>> getGuilds(@NotNull Session session) throws MissingScopeException;
+    /**
+     * Revoke [dev.fileeditor.oauth2.session.Session] token.
+     *
+     * @param  session
+     * The Session to be revoked.
+     */
+    fun revokeSession(session: Session)
 
-	/**
-	 * Refresh {@link dev.fileeditor.oauth2.session.Session Session's} token.
-	 *
-	 * @param  session
-	 *         The Session to be refreshed.
-	 *
-	 * @return A {@link OAuth2Action} for the Session to start.
-	 */
-	@NotNull
-	OAuth2Action<Session> refreshSession(@NotNull SessionData session);
+    /**
+     * Gets the client ID for this OAuth2Client.
+     *
+     * @return The client ID.
+     */
+    val id: Long
 
-	/**
-	 * Revoke {@link dev.fileeditor.oauth2.session.Session} token.
-	 *
-	 * @param  session
-	 *         The Session to be revoked.
-	 */
-	void revokeSession(@NotNull Session session);
+    /**
+     * Gets the client's secret.
+     *
+     * @return The client's secret.
+     */
+    val secret: String
 
-	/**
-	 * Gets the client ID for this OAuth2Client.
-	 *
-	 * @return The client ID.
-	 */
-	long getId();
+    /**
+     * Gets the client's [StateController].
+     *
+     * @return The client's StateController.
+     */
+    val stateController: StateController
 
-	/**
-	 * Gets the client's secret.
-	 *
-	 * @return The client's secret.
-	 */
-	@NotNull
-	String getSecret();
+    /**
+     * Gets the client's [SessionController].
+     *
+     * @return The client's SessionController.
+     */
+    val sessionController: SessionController<out Session>
 
-	/**
-	 * Gets the client's {@link StateController}.
-	 *
-	 * @return The client's StateController.
-	 */
-	@NotNull
-	StateController getStateController();
+    /**
+     * Shutdown httpClient.
+     */
+    fun shutdown()
 
-	/**
-	 * Gets the client's {@link SessionController}.
-	 *
-	 * @return The client's SessionController.
-	 */
-	@NotNull
-	SessionController<? extends Session> getSessionController();
+    /**
+     * Builder for creating OAuth2Client instances.
+     *
+     *
+     * At minimum, the developer must provide a
+     * valid Client ID, as well as a valid secret.
+     */
+    class Builder {
+        private var clientId: Long = -1
+        private var clientSecret: String? = null
+        private var sessionController: SessionController<out Session>? = null
+        private var stateController: StateController? = null
+        private var client: OkHttpClient? = null
 
-	/**
-	 * Shutdown httpClient.
-	 */
-	void shutdown();
+        /**
+         * Finalizes and builds an [OAuth2Client]
+         * instance using this builder.
+         *
+         * @return The OAuth2Client instance build.
+         *
+         * @throws java.lang.IllegalArgumentException
+         * If either:
+         *
+         *  * The Client ID is not valid.
+         *  * The Client Secret is empty.
+         *
+         */
+        fun build(): OAuth2Client {
+            Checks.check(clientId >= 0, "Client ID is invalid!")
+            Checks.notEmpty(clientSecret, "Client Secret")
+            return OAuth2ClientImpl(clientId, clientSecret!!, sessionController, stateController, client)
+        }
 
-	/**
-	 * Builder for creating OAuth2Client instances.
-	 *
-	 * <p>At minimum, the developer must provide a
-	 * valid Client ID, as well as a valid secret.
-	 */
-	class Builder {
-		private long clientId = -1;
-		private String clientSecret;
-		private SessionController<? extends Session> sessionController;
-		private StateController stateController;
-		private OkHttpClient client;
+        /**
+         * Sets the OAuth2Client's ID.
+         *
+         * @param  clientId
+         * The OAuth2Client's ID.
+         *
+         * @return This builder.
+         */
+        fun setClientId(clientId: Long): Builder {
+            this.clientId = clientId
+            return this
+        }
 
-		/**
-		 * Finalizes and builds an {@link OAuth2Client}
-		 * instance using this builder.
-		 *
-		 * @return The OAuth2Client instance build.
-		 *
-		 * @throws java.lang.IllegalArgumentException
-		 *         If either:
-		 *         <ul>
-		 *             <li>The Client ID is not valid.</li>
-		 *             <li>The Client Secret is empty.</li>
-		 *         </ul>
-		 */
-		public OAuth2Client build() {
-			Checks.check(clientId >= 0, "Client ID is invalid!");
-			Checks.notEmpty(clientSecret, "Client Secret");
-			return new OAuth2ClientImpl(clientId, clientSecret, sessionController, stateController, client);
-		}
+        /**
+         * Sets the OAuth2Client's secret.
+         *
+         * @param  clientSecret
+         * The OAuth2Client's secret.
+         *
+         * @return This builder.
+         */
+        fun setClientSecret(clientSecret: String): Builder {
+            this.clientSecret = clientSecret
+            return this
+        }
 
-		/**
-		 * Sets the OAuth2Client's ID.
-		 *
-		 * @param  clientId
-		 *         The OAuth2Client's ID.
-		 *
-		 * @return This builder.
-		 */
-		public Builder setClientId(long clientId) {
-			this.clientId = clientId;
-			return this;
-		}
+        /**
+         * Sets the OAuth2Client's [StateController].
+         *
+         * @param  sessionController
+         * The OAuth2Client's SessionController.
+         *
+         * @return This builder.
+         */
+        fun setSessionController(sessionController: SessionController<out Session>): Builder {
+            this.sessionController = sessionController
+            return this
+        }
 
-		/**
-		 * Sets the OAuth2Client's secret.
-		 *
-		 * @param  clientSecret
-		 *         The OAuth2Client's secret.
-		 *
-		 * @return This builder.
-		 */
-		public Builder setClientSecret(@NotNull String clientSecret) {
-			this.clientSecret = clientSecret;
-			return this;
-		}
+        /**
+         * Sets the OAuth2Client's [StateController].
+         *
+         * @param  stateController
+         * The OAuth2Client's StateController.
+         *
+         * @return This builder.
+         */
+        fun setStateController(stateController: StateController): Builder {
+            this.stateController = stateController
+            return this
+        }
 
-		/**
-		 * Sets the OAuth2Client's {@link StateController}.
-		 *
-		 * @param  sessionController
-		 *         The OAuth2Client's SessionController.
-		 *
-		 * @return This builder.
-		 */
-		public Builder setSessionController(SessionController<? extends Session> sessionController) {
-			this.sessionController = sessionController;
-			return this;
-		}
+        /**
+         * Sets the client's internal [OkHttpClient][okhttp3.OkHttpClient] used for
+         * all requests and interactions with Discord.
+         *
+         * @param  client
+         * The OAuth2Client's OkHttpClient.
+         *
+         * @return This builder.
+         */
+        fun setOkHttpClient(client: OkHttpClient): Builder {
+            this.client = client
+            return this
+        }
+    }
 
-		/**
-		 * Sets the OAuth2Client's {@link StateController}.
-		 *
-		 * @param  stateController
-		 *         The OAuth2Client's StateController.
-		 *
-		 * @return This builder.
-		 */
-		public Builder setStateController(StateController stateController) {
-			this.stateController = stateController;
-			return this;
-		}
-
-		/**
-		 * Sets the client's internal {@link okhttp3.OkHttpClient OkHttpClient} used for
-		 * all requests and interactions with Discord.
-		 *
-		 * @param  client
-		 *         The OAuth2Client's OkHttpClient.
-		 *
-		 * @return This builder.
-		 */
-		public Builder setOkHttpClient(OkHttpClient client) {
-			this.client = client;
-			return this;
-		}
-	}
+    companion object {
+        /**
+         * The REST version targeted by JDA-Utilities OAuth2.
+         */
+        const val DISCORD_REST_VERSION: Int = 10
+    }
 }

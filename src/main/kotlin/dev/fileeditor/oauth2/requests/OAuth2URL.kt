@@ -1,85 +1,87 @@
-package dev.fileeditor.oauth2.requests;
+package dev.fileeditor.oauth2.requests
 
-import dev.fileeditor.oauth2.OAuth2Client;
+import dev.fileeditor.oauth2.OAuth2Client
 
 /**
  * Simple formattable constants for various URLs used in the JDA-Utilities OAuth2.
  */
-public enum OAuth2URL {
-	AUTHORIZE("/oauth2/authorize",
-		"client_id=%d",
-		"redirect_uri=%s",
-		"response_type=code",
-		"scope=%s",
-		"state=%s"),
-	TOKEN("/oauth2/token",
-		"client_id=%d",
-		"client_secret=%s",
-		"redirect_uri=%s",
-		"grant_type=authorization_code",
-		"code=%s",
-		"scope=%s"),
-	TOKEN_REFRESH("/oauth2/token",
-		"client_id=%d",
-		"client_secret=%s",
-		"redirect_uri=%s",
-		"grant_type=refresh_token",
-		"refresh_token=%s"),
-	TOKEN_REVOKE("/oauth2/token/revoke",
-		"client_id=%d",
-		"client_secret=%s",
-		"token=%s",
-		"token_type_hint=access_token"),
-	CURRENT_USER("/users/@me"),
-	CURRENT_USER_GUILDS("/users/@me/guilds"),
-	CURRENT_USER_GUILDS_COUNT("/users/@me/guilds",
-		"with_counts=true");
+enum class OAuth2URL(
+    private val route: String,
+    vararg queryParams: String?
+) {
+    AUTHORIZE(
+        "/oauth2/authorize",
+        "client_id=%d",
+        "redirect_uri=%s",
+        "response_type=code",
+        "scope=%s",
+        "state=%s"
+    ),
+    TOKEN(
+        "/oauth2/token",
+        "client_id=%d",
+        "client_secret=%s",
+        "redirect_uri=%s",
+        "grant_type=authorization_code",
+        "code=%s",
+        "scope=%s"
+    ),
+    TOKEN_REFRESH(
+        "/oauth2/token",
+        "client_id=%d",
+        "client_secret=%s",
+        "redirect_uri=%s",
+        "grant_type=refresh_token",
+        "refresh_token=%s"
+    ),
+    TOKEN_REVOKE(
+        "/oauth2/token/revoke",
+        "client_id=%d",
+        "client_secret=%s",
+        "token=%s",
+        "token_type_hint=access_token"
+    ),
+    CURRENT_USER("/users/@me"),
+    CURRENT_USER_GUILDS("/users/@me/guilds"),
+    CURRENT_USER_GUILDS_COUNT(
+        "/users/@me/guilds",
+        "with_counts=true"
+    );
 
-	public static final String BASE_API_URL = String.format("https://discord.com/api/v%d", OAuth2Client.DISCORD_REST_VERSION);
+    private var formattableRoute: String
+    private val hasQueryParams: Boolean = queryParams.isNotEmpty()
+    private var queryParams: String
 
-	private final String route;
-	private final String formattableRoute;
-	private final boolean hasQueryParams;
-	private final String queryParams;
+    init {
+        if (hasQueryParams) {
+            val builder = StringBuilder()
 
-	OAuth2URL(String route, String... queryParams) {
-		this.route = route;
-		this.hasQueryParams = queryParams.length > 0;
+            for (i in queryParams.indices) {
+                builder.append(if (i == 0) '?' else '&')
+                builder.append(queryParams[i])
+            }
 
-		if (hasQueryParams) {
-			StringBuilder builder = new StringBuilder();
+            this.formattableRoute = route + builder
+            this.queryParams = builder.toString()
+        } else {
+            this.formattableRoute = route
+            this.queryParams = ""
+        }
+    }
 
-			for (int i = 0; i < queryParams.length; i++) {
-				builder.append(i == 0 ? '?' : '&');
-				builder.append(queryParams[i]);
-			}
+    fun compileQueryParams(vararg values: Any?): String {
+        return String.format(queryParams, *values).replace("\\?".toRegex(), "")
+    }
 
-			this.formattableRoute = route + builder;
-			this.queryParams = builder.toString();
-		} else {
-			this.formattableRoute = route;
-			this.queryParams = "";
-		}
-	}
+    val routeWithBaseUrl: String
+        get() = BASE_API_URL + route
 
-	public String getRoute() {
-		return route;
-	}
+    fun compile(vararg values: Any?): String {
+        return BASE_API_URL + (if (hasQueryParams) String.format(formattableRoute, *values) else formattableRoute)
+    }
 
-	public boolean isHasQueryParams() {
-		return hasQueryParams;
-	}
-
-	public String compileQueryParams(Object... values) {
-		return String.format(queryParams, values).replaceAll("\\?", "");
-	}
-
-	public String getRouteWithBaseUrl() {
-		return BASE_API_URL + route;
-	}
-
-	public String compile(Object... values) {
-		return BASE_API_URL + (hasQueryParams ? String.format(formattableRoute, values) : formattableRoute);
-	}
+    companion object {
+        const val BASE_API_URL: String = "https://discord.com/api/v${OAuth2Client.DISCORD_REST_VERSION}"
+    }
 }
 

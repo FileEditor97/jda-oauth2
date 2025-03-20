@@ -1,90 +1,37 @@
-package dev.fileeditor.oauth2.session;
+package dev.fileeditor.oauth2.session
 
-import dev.fileeditor.oauth2.Scope;
-import org.jetbrains.annotations.NotNull;
-
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import dev.fileeditor.oauth2.Scope
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 /**
- * Contains various data necessary for creating a {@link Session} using a {@link SessionController}.
+ * Contains various data necessary for creating a [Session] using a [SessionController].
  */
-public class SessionData {
-	private final String identifier, accessToken, refreshToken, tokenType;
-	private final OffsetDateTime expiration;
-	private final Scope[] scopes;
+class SessionData(
+    /**
+     * @return The session's identifier.
+     */
+    val identifier: String,
 
-	public SessionData(String identifier, String accessToken, String refreshToken, String tokenType, OffsetDateTime expiration, Scope[] scopes) {
-		this.identifier = identifier;
-		this.accessToken = accessToken;
-		this.refreshToken = refreshToken;
-		this.tokenType = tokenType;
-		this.expiration = expiration;
-		this.scopes = scopes;
-	}
+    override val accessToken: String,
+    override val refreshToken: String,
+    override val tokenType: String,
+    override val expiration: OffsetDateTime,
+    override val scopes: Array<Scope>
+) : Session {
+    override fun equals(other: Any?): Boolean {
+        if (other !is SessionData) {
+            return false
+        }
 
-	/**
-	 * @return The session's identifier.
-	 */
-	@NotNull
-	public String getIdentifier() {
-		return identifier;
-	}
+        return identifier == other.identifier
+    }
 
-	/**
-	 * @return The session's access token.
-	 */
-	@NotNull
-	public String getAccessToken() {
-		return accessToken;
-	}
+    override fun toString(): String {
+        return "SessionData(identifier: $identifier, access-token: $accessToken, refresh-token: $refreshToken, type: $tokenType, expires: ${expiration.format(DateTimeFormatter.ISO_DATE_TIME)})"
+    }
 
-	/**
-	 * @return The session's refresh token.
-	 */
-	@NotNull
-	public String getRefreshToken() {
-		return refreshToken;
-	}
-
-	/**
-	 * @return The session's token type.
-	 */
-	@NotNull
-	public String getTokenType() {
-		return tokenType;
-	}
-
-	/**
-	 * @return The session's expiration time.
-	 */
-	@NotNull
-	public OffsetDateTime getExpiration() {
-		return expiration;
-	}
-
-	/**
-	 * @return The session's Scopes.
-	 */
-	@NotNull
-	public Scope[] getScopes() {
-		return scopes;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof SessionData data)) {
-			return false;
-		}
-
-		return getIdentifier().equals(data.getIdentifier()) && getTokenType().equals(data.getTokenType());
-	}
-
-	@Override
-	public String toString() {
-		return String.format("SessionData(identifier: %s, access-token: %s, refresh-token: %s, type: %s, expires: %s)",
-			getIdentifier(), getAccessToken(), getRefreshToken(), getTokenType(),
-			getExpiration().format(DateTimeFormatter.ISO_DATE_TIME));
-	}
-
+    override fun hashCode(): Int {
+        return identifier.hashCode()
+    }
 }

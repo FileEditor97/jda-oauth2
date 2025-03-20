@@ -1,37 +1,34 @@
-package dev.fileeditor.oauth2.session;
+package dev.fileeditor.oauth2.session
 
-import dev.fileeditor.oauth2.Scope;
-
-import java.time.OffsetDateTime;
+import dev.fileeditor.oauth2.Scope
+import java.time.OffsetDateTime
 
 /**
  * Implementable data type used to allow access to data regarding OAuth2 sessions.
  */
-public interface Session {
+interface Session {
+    /**
+     * @return The session's access token.
+     */
+	val accessToken: String
 
-	/**
-	 * @return The session's access token.
-	 */
-	String getAccessToken();
+    /**
+     * @return The session's refresh token.
+     */
+    val refreshToken: String
 
-	/**
-	 * @return The session's refresh token.
-	 */
-	String getRefreshToken();
+    /**
+     * @return The session's Scopes.
+     */
+	val scopes: Array<Scope>
 
-	/**
-	 * @return The session's Scopes.
-	 */
-	Scope[] getScopes();
+    /**
+     * @return The session's token type.
+     */
+	val tokenType: String
 
-	/**
-	 * @return The session's token type.
-	 */
-	String getTokenType();
-
-	/**
-	 * @return The session's expiration time.
-	 */
-	OffsetDateTime getExpiration();
-
+    /**
+     * @return The session's expiration time.
+     */
+    val expiration: OffsetDateTime
 }

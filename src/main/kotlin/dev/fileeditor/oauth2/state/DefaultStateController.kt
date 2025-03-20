@@ -1,32 +1,30 @@
-package dev.fileeditor.oauth2.state;
-
-import java.util.HashMap;
+package dev.fileeditor.oauth2.state
 
 /**
- * The default {@link StateController} implementation.
+ * The default [StateController] implementation.
  */
-public class DefaultStateController implements StateController {
+class DefaultStateController : StateController {
+    private val states = HashMap<String, String>()
 
-	private final static String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-	private final HashMap<String, String> states = new HashMap<>();
+    override fun generateNewState(redirectUri: String): String {
+        val state = randomState()
+        states[state] = redirectUri
+        return state
+    }
 
-	@Override
-	public String generateNewState(String redirectUri) {
-		String state = randomState();
-		states.put(state, redirectUri);
-		return state;
-	}
+    override fun consumeState(state: String): String? {
+        return states.remove(state)
+    }
 
-	@Override
-	public String consumeState(String state) {
-		return states.remove(state);
-	}
+    companion object {
+        private const val CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
-	private static String randomState() {
-		StringBuilder builder = new StringBuilder();
-		for (int i = 0; i < 10; i++) {
-			builder.append(CHARACTERS.charAt((int) (Math.random() * CHARACTERS.length())));
-		}
-		return builder.toString();
-	}
+        private fun randomState(): String {
+            val builder = StringBuilder()
+            for (i in 0..9) {
+                builder.append(CHARACTERS[(Math.random() * CHARACTERS.length).toInt()])
+            }
+            return builder.toString()
+        }
+    }
 }

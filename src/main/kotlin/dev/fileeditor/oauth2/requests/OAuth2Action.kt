@@ -1,151 +1,121 @@
-package dev.fileeditor.oauth2.requests;
+package dev.fileeditor.oauth2.requests
 
-import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl;
-import net.dv8tion.jda.api.requests.Method;
-import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.Headers;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import dev.fileeditor.oauth2.entities.impl.OAuth2ClientImpl
+import net.dv8tion.jda.api.requests.Method
+import net.dv8tion.jda.internal.utils.Checks
+import okhttp3.Headers
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
+import java.io.IOException
+import java.util.concurrent.CompletableFuture
+import java.util.function.Consumer
 
 /**
- * An adaptable lookalike of JDA's {@link net.dv8tion.jda.api.requests.RestAction RestAction}.
+ * An adaptable lookalike of JDA's [RestAction][net.dv8tion.jda.api.requests.RestAction].
  *
- * <p>OAuth2Actions can either be completed <i>asynchronously</i> using {@link OAuth2Action#queue() queue},
- * or synchronously using {@link OAuth2Action#complete() complete}.
  *
- * <p>Note that OAuth2Action does not extend JDA's RestAction.
+ * OAuth2Actions can either be completed *asynchronously* using [queue][OAuth2Action.queue],
+ * or synchronously using [complete][OAuth2Action.complete].
+ *
+ *
+ * Note that OAuth2Action does not extend JDA's RestAction.
  *
  * @author Kaidan Gustave
  */
-public abstract class OAuth2Action<T> {
-	protected final Consumer<T> DEFAULT_SUCCESS = t -> {};
-	protected static final Consumer<Throwable> DEFAULT_FAILURE = t ->
-		OAuth2Requester.LOGGER.error("Requester encountered an error while processing response!", t);
+abstract class OAuth2Action<T>(client: OAuth2ClientImpl, method: Method, url: String) {
+    protected val defaultSuccess: Consumer<T> = Consumer {}
 
-	protected final OAuth2ClientImpl client;
-	protected final Method method;
-	protected final String url;
+    /**
+     * Gets the [client][dev.fileeditor.oauth2.OAuth2Client] responsible
+     * for creating this OAuth2Action.
+     *
+     * @return The OAuth2Client responsible for creating this.
+     */
+    val client: OAuth2ClientImpl
+	val method: Method
+	val url: String
 
-	public OAuth2Action(OAuth2ClientImpl client, Method method, String url) {
-		Checks.notNull(client, "OAuth2Client");
-		Checks.notNull(method, "Request method");
-		Checks.notEmpty(url, "URL");
+    init {
+        Checks.notNull(client, "OAuth2Client")
+        Checks.notNull(method, "Request method")
+        Checks.notEmpty(url, "URL")
 
-		this.client = client;
-		this.method = method;
-		this.url = url;
-	}
+        this.client = client
+        this.method = method
+        this.url = url
+    }
 
-	protected RequestBody getBody() {
-		return OAuth2Requester.EMPTY_BODY;
-	}
+    open val body: RequestBody
+        get() = OAuth2Requester.EMPTY_BODY
 
-	protected Headers getHeaders() {
-		return Headers.of();
-	}
+    open val headers: Headers?
+        get() = Headers.headersOf()
 
-	protected Request buildRequest() {
-		Request.Builder builder = new Request.Builder();
+    fun buildRequest(): Request {
+        val builder = Request.Builder()
 
-		switch(method) {
-			case GET:
-				builder.get();
-				break;
-			case POST:
-				builder.post(getBody());
-				break;
-			default:
-				throw new IllegalArgumentException(method.name() + " requests are not supported!");
-		}
+        when (method) {
+            Method.GET -> builder.get()
+            Method.POST -> builder.post(body)
+            else -> throw IllegalArgumentException(method.name + " requests are not supported!")
+        }
 
-		builder.url(url);
-		builder.header("User-Agent", OAuth2Requester.USER_AGENT);
-		builder.headers(getHeaders());
+        builder.url(url)
+        builder.header("User-Agent", OAuth2Requester.USER_AGENT)
+        builder.headers(headers!!)
 
-		return builder.build();
-	}
+        return builder.build()
+    }
 
-	protected Method getMethod() {
-		return method;
-	}
+    /**
+     * Asynchronously executes this OAuth2Action, providing the value constructed from the response
+     * as the parameter given to the success [Consumer][java.util.function.Consumer] if the
+     * response is successful, or the exception to the failure Consumer if it's not.
+     *
+     * @param  success
+     * The success consumer, executed when this OAuth2Action gets a successful response.
+     * @param  failure
+     * The failure consumer, executed when this OAuth2Action gets a failed response.
+     */
+    fun queue(success: Consumer<T> = defaultSuccess, failure: Consumer<Throwable> = DEFAULT_FAILURE) {
+        client.requester.submitAsync(this, success, failure)
+    }
 
-	protected String getUrl() {
-		return url;
-	}
+    /**
+     * Synchronously executes this OAuth2Action, returning the value constructed from the response
+     * if it was successful, or throwing the [Exception][java.lang.Exception] if it was not.
+     *
+     *
+     * Bear in mind when using this, that this method blocks the thread it is called in.
+     * @return the value constructed from the response
+     * @throws java.io.IOException on unsuccessful execution
+     */
+    @Throws(IOException::class)
+    fun complete(): T {
+        return client.requester.submitSync(this)
+    }
 
-	/**
-	 * Asynchronously executes this OAuth2Action.
-	 */
-	public void queue() {
-		queue(DEFAULT_SUCCESS);
-	}
+    /**
+     * Submits a Request for execution and provides a CompletableFuture representing its completion task.
+     * Cancelling the returned Future will result in the cancellation of the Request!
+     *
+     * @return CompletableFuture to be used.z
+     */
+    fun future(): CompletableFuture<T> {
+        return client.requester.submit(this)
+    }
 
-	/**
-	 * Asynchronously executes this OAuth2Action, providing the value constructed from the response
-	 * as the parameter given to the success {@link java.util.function.Consumer Consumer}.
-	 *
-	 * @param  success
-	 *         The success consumer, executed when this OAuth2Action gets a successful response.
-	 */
-	public void queue(Consumer<T> success) {
-		queue(success, DEFAULT_FAILURE);
-	}
+    @Throws(IOException::class)
+    abstract fun handle(response: Response): T
 
-	/**
-	 * Asynchronously executes this OAuth2Action, providing the value constructed from the response
-	 * as the parameter given to the success {@link java.util.function.Consumer Consumer} if the
-	 * response is successful, or the exception to the failure Consumer if it's not.
-	 *
-	 * @param  success
-	 *         The success consumer, executed when this OAuth2Action gets a successful response.
-	 * @param  failure
-	 *         The failure consumer, executed when this OAuth2Action gets a failed response.
-	 */
-	public void queue(Consumer<T> success, Consumer<Throwable> failure) {
-		client.getRequester().submitAsync(this, success, failure);
-	}
-
-	/**
-	 * Synchronously executes this OAuth2Action, returning the value constructed from the response
-	 * if it was successful, or throwing the {@link java.lang.Exception Exception} if it was not.
-	 *
-	 * <p>Bear in mind when using this, that this method blocks the thread it is called in.
-	 * @return the value constructed from the response
-	 * @throws java.io.IOException on unsuccessful execution
-	 */
-	@Nullable
-	public T complete() throws IOException {
-		return client.getRequester().submitSync(this);
-	}
-
-	/**
-	 * Submits a Request for execution and provides a CompletableFuture representing its completion task.
-	 * Cancelling the returned Future will result in the cancellation of the Request!
-	 *
-	 * @return CompletableFuture to be used.z
-	 */
-	@NotNull
-	public CompletableFuture<T> future() {
-		return client.getRequester().submit(this);
-	}
-
-	/**
-	 * Gets the {@link dev.fileeditor.oauth2.OAuth2Client client} responsible
-	 * for creating this OAuth2Action.
-	 *
-	 * @return The OAuth2Client responsible for creating this.
-	 */
-	@NotNull
-	public OAuth2ClientImpl getClient() {
-		return client;
-	}
-
-	protected abstract T handle(Response response) throws IOException;
+    companion object {
+        val DEFAULT_FAILURE: Consumer<Throwable> =
+            Consumer { t: Throwable ->
+                OAuth2Requester.LOGGER.error(
+                    "Requester encountered an error while processing response!",
+                    t
+                )
+            }
+    }
 }

@@ -1,289 +1,268 @@
-package dev.fileeditor.oauth2.entities.impl;
+package dev.fileeditor.oauth2.entities.impl
 
-import dev.fileeditor.oauth2.OAuth2Client;
-import dev.fileeditor.oauth2.Scope;
-import dev.fileeditor.oauth2.entities.OAuth2Guild;
-import dev.fileeditor.oauth2.entities.OAuth2User;
-import dev.fileeditor.oauth2.exceptions.InvalidStateException;
-import dev.fileeditor.oauth2.exceptions.MissingScopeException;
-import dev.fileeditor.oauth2.requests.OAuth2Action;
-import dev.fileeditor.oauth2.requests.OAuth2Requester;
-import dev.fileeditor.oauth2.requests.OAuth2URL;
-import dev.fileeditor.oauth2.session.DefaultSessionController;
-import dev.fileeditor.oauth2.session.Session;
-import dev.fileeditor.oauth2.session.SessionController;
-import dev.fileeditor.oauth2.session.SessionData;
-import dev.fileeditor.oauth2.state.DefaultStateController;
-import dev.fileeditor.oauth2.state.StateController;
-import net.dv8tion.jda.api.exceptions.HttpException;
-import net.dv8tion.jda.api.requests.Method;
-import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.EncodingUtil;
-import net.dv8tion.jda.internal.utils.IOUtil;
-import okhttp3.*;
-import org.jetbrains.annotations.NotNull;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.json.JSONTokener;
+import dev.fileeditor.oauth2.OAuth2Client
+import dev.fileeditor.oauth2.Scope
+import dev.fileeditor.oauth2.entities.OAuth2Guild
+import dev.fileeditor.oauth2.entities.OAuth2User
+import dev.fileeditor.oauth2.exceptions.InvalidStateException
+import dev.fileeditor.oauth2.exceptions.MissingScopeException
+import dev.fileeditor.oauth2.requests.OAuth2Action
+import dev.fileeditor.oauth2.requests.OAuth2Requester
+import dev.fileeditor.oauth2.requests.OAuth2URL
+import dev.fileeditor.oauth2.session.DefaultSessionController
+import dev.fileeditor.oauth2.session.Session
+import dev.fileeditor.oauth2.session.SessionController
+import dev.fileeditor.oauth2.session.SessionData
+import dev.fileeditor.oauth2.state.DefaultStateController
+import dev.fileeditor.oauth2.state.StateController
+import net.dv8tion.jda.api.exceptions.HttpException
+import net.dv8tion.jda.api.requests.Method
+import net.dv8tion.jda.internal.utils.Checks
+import net.dv8tion.jda.internal.utils.EncodingUtil
+import net.dv8tion.jda.internal.utils.IOUtil
+import okhttp3.Headers
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
+import java.io.IOException
+import java.time.OffsetDateTime
+import java.util.*
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.OffsetDateTime;
-import java.util.LinkedList;
-import java.util.List;
+class OAuth2ClientImpl(
+    clientId: Long,
+    clientSecret: String,
+    sessionController: SessionController<out Session>?,
+    stateController: StateController?,
+    httpClient: OkHttpClient?
+) : OAuth2Client {
+    //	private static final Logger LOG = JDALogger.getLog(OAuth2Client.class);
+    override val id: Long
+    override val secret: String
+    override val sessionController: SessionController<out Session>
+    override val stateController: StateController
+    private val httpClient: OkHttpClient
 
-public class OAuth2ClientImpl implements OAuth2Client {
-//	private static final Logger LOG = JDALogger.getLog(OAuth2Client.class);
+    /**
+     * Gets the internal OAuth2Requester used by this OAuth2Client.
+     *
+     * @return The internal OAuth2Requester used by this OAuth2Client.
+     */
+    val requester: OAuth2Requester
 
-	private final long clientId;
-	private final String clientSecret;
-	private final SessionController<? extends Session> sessionController;
-	private final StateController stateController;
-	private final OkHttpClient httpClient;
-	private final OAuth2Requester requester;
+    init {
+        Checks.check(clientId >= 0, "Invalid Client ID")
+        Checks.notNull(clientSecret, "Client Secret")
 
-	public OAuth2ClientImpl(long clientId, String clientSecret, SessionController<? extends Session> sessionController,
-							StateController stateController, OkHttpClient httpClient) {
-		Checks.check(clientId >= 0, "Invalid Client ID");
-		Checks.notNull(clientSecret, "Client Secret");
+        this.id = clientId
+        this.secret = clientSecret
+        this.sessionController = sessionController ?: DefaultSessionController()
+        this.stateController = stateController ?: DefaultStateController()
+        this.httpClient = httpClient ?: OkHttpClient.Builder().build()
+        this.requester = OAuth2Requester(this.httpClient)
+    }
 
-		this.clientId = clientId;
-		this.clientSecret = clientSecret;
-		this.sessionController = sessionController == null ? new DefaultSessionController() : sessionController;
-		this.stateController = stateController == null ? new DefaultStateController() : stateController;
-		this.httpClient = httpClient == null ? new OkHttpClient.Builder().build() : httpClient;
-		this.requester = new OAuth2Requester(this.httpClient);
-	}
+    override fun generateAuthorizationURL(redirectUri: String, vararg scopes: Scope): String {
+        Checks.notNull(redirectUri, "Redirect URI")
 
-	@NotNull
-	@Override
-	public String generateAuthorizationURL(@NotNull String redirectUri, Scope... scopes) {
-		Checks.notNull(redirectUri, "Redirect URI");
+        return OAuth2URL.AUTHORIZE.compile(
+            id, EncodingUtil.encodeUTF8(redirectUri),
+            Scope.join(*scopes), stateController.generateNewState(redirectUri)
+        )
+    }
 
-		return OAuth2URL.AUTHORIZE.compile(clientId, EncodingUtil.encodeUTF8(redirectUri),
-			Scope.join(scopes), stateController.generateNewState(redirectUri));
-	}
+    @Throws(InvalidStateException::class)
+    override fun startSession(
+        code: String,
+        state: String,
+        identifier: String,
+        vararg scopes: Scope
+    ): OAuth2Action<Session> {
+        Checks.notEmpty(code, "code")
+        Checks.notEmpty(state, "state")
 
-	@NotNull
-	@Override
-	public OAuth2Action<Session> startSession(@NotNull String code, @NotNull String state, @NotNull String identifier, Scope... scopes) throws InvalidStateException {
-		Checks.notEmpty(code, "code");
-		Checks.notEmpty(state, "state");
+        val redirectUri = stateController.consumeState(state)
+            ?: throw InvalidStateException(String.format("No state '%s' exists!", state))
 
-		String redirectUri = stateController.consumeState(state);
-		if (redirectUri == null)
-			throw new InvalidStateException(String.format("No state '%s' exists!", state));
+        val oAuth2URL = OAuth2URL.TOKEN
 
-		OAuth2URL oAuth2URL = OAuth2URL.TOKEN;
+        return object : OAuth2Action<Session>(this@OAuth2ClientImpl, Method.POST, oAuth2URL.routeWithBaseUrl) {
+            override val headers: Headers
+                get() = Headers.headersOf("Content-Type", "x-www-form-urlencoded")
 
-		return new OAuth2Action<>(this, Method.POST, oAuth2URL.getRouteWithBaseUrl()) {
-			@Override
-			protected Headers getHeaders() {
-				return Headers.of("Content-Type", "x-www-form-urlencoded");
-			}
+            override val body: RequestBody
+                get() = oAuth2URL.compileQueryParams(
+                    id, secret,
+                    EncodingUtil.encodeUTF8(redirectUri), code, Scope.join(true, *scopes)
+                ).toRequestBody("application/x-www-form-urlencoded".toMediaType())
 
-			@Override
-			protected RequestBody getBody() {
-				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, clientSecret,
-						EncodingUtil.encodeUTF8(redirectUri), code, Scope.join(true, scopes)),
-					MediaType.parse("application/x-www-form-urlencoded"));
-			}
+            @Throws(IOException::class)
+            override fun handle(response: Response): Session {
+                if (!response.isSuccessful) throw failure(response)
 
-			@Override
-			protected Session handle(Response response) throws IOException {
-				if (!response.isSuccessful())
-					throw failure(response);
+                val body = JSONObject(JSONTokener(IOUtil.getBody(response)))
 
-				JSONObject body = new JSONObject(new JSONTokener(IOUtil.getBody(response)));
+                return sessionController.createSession(
+                    SessionData(
+                        identifier,
+                        body.getString("access_token"),
+                        body.getString("refresh_token"),
+                        body.getString("token_type"),
+                        OffsetDateTime.now().plusSeconds(body.getInt("expires_in").toLong()),
+                        parseScopes(body.getString("scope"))
+                    )
+                )
+            }
+        }
+    }
 
-				Scope[] scopes = parseScopes(body.getString("scope"));
+    override fun getUser(session: Session): OAuth2Action<OAuth2User> {
+        Checks.notNull(session, "Session")
+        return object : OAuth2Action<OAuth2User>(this@OAuth2ClientImpl, Method.GET, OAuth2URL.CURRENT_USER.compile()) {
+            override val headers: Headers
+                get() = Headers.headersOf("Authorization", generateAuthorizationHeader(session))
 
-				return sessionController.createSession(new SessionData(identifier,
-					body.getString("access_token"), body.getString("refresh_token"),
-					body.getString("token_type"), OffsetDateTime.now().plusSeconds(body.getInt("expires_in")), scopes));
-			}
-		};
-	}
+            @Throws(IOException::class)
+            override fun handle(response: Response): OAuth2User {
+                if (!response.isSuccessful) throw failure(response)
 
-	@NotNull
-	@Override
-	public OAuth2Action<OAuth2User> getUser(@NotNull Session session) {
-		Checks.notNull(session, "Session");
-		return new OAuth2Action<>(this, Method.GET, OAuth2URL.CURRENT_USER.compile()) {
-			@Override
-			protected Headers getHeaders() {
-				return Headers.of("Authorization", generateAuthorizationHeader(session));
-			}
+                val body = JSONObject(JSONTokener(IOUtil.getBody(response)))
 
-			@Override
-			protected OAuth2User handle(Response response) throws IOException {
-				if (!response.isSuccessful())
-					throw failure(response);
-				JSONObject body = new JSONObject(new JSONTokener(IOUtil.getBody(response)));
-				return new OAuth2UserImpl(OAuth2ClientImpl.this, session, body.getLong("id"),
-					body.getString("username"), body.optString("global_name", null),
-					body.optString("avatar", null), body.optString("email", null),
-					body.optBoolean("verified", false), body.getBoolean("mfa_enabled"),
-					body.optString("banner", null), body.optIntegerObject("accent_color", null),
-					body.optString("locale", null));
-			}
-		};
-	}
+                return OAuth2UserImpl(
+                    this@OAuth2ClientImpl, session, body.getLong("id"),
+                    body.getString("username"), body.optString("global_name", null),
+                    body.optString("avatar", null), body.optString("email", null),
+                    body.optBoolean("verified", false), body.getBoolean("mfa_enabled"),
+                    body.optString("banner", null), body.optIntegerObject("accent_color", null),
+                    body.optString("locale", null)
+                )
+            }
+        }
+    }
 
-	@NotNull
-	@Override
-	public OAuth2Action<List<OAuth2Guild>> getGuilds(@NotNull Session session) throws MissingScopeException {
-		Checks.notNull(session, "session");
-		if (!Scope.contains(session.getScopes(), Scope.GUILDS))
-			throw new MissingScopeException("get guilds for a Session", Scope.GUILDS);
-		// If with user count
-		OAuth2URL url = Scope.contains(session.getScopes(), Scope.GUILDS_MEMBERS) ? OAuth2URL.CURRENT_USER_GUILDS_COUNT : OAuth2URL.CURRENT_USER_GUILDS;
+    @Throws(MissingScopeException::class)
+    override fun getGuilds(session: Session): OAuth2Action<List<OAuth2Guild>> {
+        Checks.notNull(session, "session")
+        if (!Scope.contains(session.scopes, Scope.GUILDS)) throw MissingScopeException(
+            "get guilds for a Session",
+            Scope.GUILDS
+        )
+        // If with user count
+        val url = if (session.scopes.contains(Scope.GUILDS_MEMBERS)) OAuth2URL.CURRENT_USER_GUILDS_COUNT
+        else OAuth2URL.CURRENT_USER_GUILDS
 
-		return new OAuth2Action<>(this, Method.GET, url.compile()) {
-			@Override
-			protected Headers getHeaders() {
-				return Headers.of("Authorization", generateAuthorizationHeader(session));
-			}
+        return object : OAuth2Action<List<OAuth2Guild>>(this@OAuth2ClientImpl, Method.GET, url.compile()) {
+            override val headers: Headers
+                get() = Headers.headersOf("Authorization", generateAuthorizationHeader(session))
 
-			@Override
-			protected List<OAuth2Guild> handle(Response response) throws IOException {
-				if (!response.isSuccessful())
-					throw failure(response);
+            @Throws(IOException::class)
+            override fun handle(response: Response): List<OAuth2Guild> {
+                if (!response.isSuccessful) throw failure(response)
 
-				JSONArray body = new JSONArray(new JSONTokener(IOUtil.getBody(response)));
-				List<OAuth2Guild> list = new LinkedList<>();
-				JSONObject obj;
-				for (int i = 0; i < body.length(); i++) {
-					obj = body.getJSONObject(i);
-					list.add(new OAuth2GuildImpl(OAuth2ClientImpl.this, obj.getLong("id"),
-						obj.getString("name"), obj.optString("icon", null),
-						obj.optString("banner", null), obj.getBoolean("owner"),
-						obj.getLong("permissions"), obj.optInt("approximate_presence_count", -1),
-						obj.optInt("approximate_member_count", -1)));
-				}
-				return list;
-			}
-		};
-	}
+                val body = JSONArray(JSONTokener(IOUtil.getBody(response)))
+                val list: MutableList<OAuth2Guild> = LinkedList()
+                var obj: JSONObject
+                for (i in 0..<body.length()) {
+                    obj = body.getJSONObject(i)
+                    list.add(
+                        OAuth2GuildImpl(
+                            this@OAuth2ClientImpl, obj.getLong("id"),
+                            obj.getString("name"), obj.optString("icon", null),
+                            obj.optString("banner", null), obj.getBoolean("owner"),
+                            obj.getLong("permissions"), obj.optInt("approximate_presence_count", -1),
+                            obj.optInt("approximate_member_count", -1)
+                        )
+                    )
+                }
+                return list
+            }
+        }
+    }
 
-	@NotNull
-	@Override
-	public OAuth2Action<Session> refreshSession(@NotNull SessionData sessionData) {
-		Checks.notNull(sessionData, "session");
+    override fun refreshSession(session: SessionData): OAuth2Action<Session> {
+        Checks.notNull(session, "session")
 
-		OAuth2URL oAuth2URL = OAuth2URL.TOKEN_REFRESH;
+        val oAuth2URL = OAuth2URL.TOKEN_REFRESH
 
-		return new OAuth2Action<>(this, Method.POST, oAuth2URL.getRouteWithBaseUrl()) {
-			@Override
-			protected Headers getHeaders() {
-				return Headers.of("Content-Type", "x-www-form-urlencoded");
-			}
+        return object : OAuth2Action<Session>(this@OAuth2ClientImpl, Method.POST, oAuth2URL.routeWithBaseUrl) {
+            override val headers: Headers
+                get() = Headers.headersOf("Content-Type", "x-www-form-urlencoded")
 
-			@Override
-			protected RequestBody getBody() {
-				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, clientSecret, sessionData.getRefreshToken()),
-					MediaType.parse("application/x-www-form-urlencoded"));
-			}
+            override val body: RequestBody
+                get() = oAuth2URL.compileQueryParams(
+                    id, secret, session.refreshToken
+                ).toRequestBody("application/x-www-form-urlencoded".toMediaType())
 
-			@Override
-			protected Session handle(Response response) throws IOException {
-				if (!response.isSuccessful())
-					throw failure(response);
+            @Throws(IOException::class)
+            override fun handle(response: Response): Session {
+                if (!response.isSuccessful) throw failure(response)
 
-				JSONObject body = new JSONObject(new JSONTokener(IOUtil.getBody(response)));
+                val body = JSONObject(JSONTokener(IOUtil.getBody(response)))
 
-				Scope[] scopes = parseScopes(body.getString("scope"));
+                val scopes = parseScopes(body.getString("scope"))
 
-				return sessionController.createSession(new SessionData(sessionData.getIdentifier(),
-					body.getString("access_token"), body.getString("refresh_token"),
-					body.getString("token_type"), OffsetDateTime.now().plusSeconds(body.getInt("expires_in")), scopes));
-			}
-		};
-	}
+                return sessionController.createSession(
+                    SessionData(
+                        session.identifier,
+                        body.getString("access_token"),
+                        body.getString("refresh_token"),
+                        body.getString("token_type"),
+                        OffsetDateTime.now().plusSeconds(body.getInt("expires_in").toLong()),
+                        scopes
+                    )
+                )
+            }
+        }
+    }
 
-	@Override
-	public void revokeSession(@NotNull Session session) {
-		Checks.notNull(session, "session");
+    override fun revokeSession(session: Session) {
+        Checks.notNull(session, "session")
 
-		OAuth2URL oAuth2URL = OAuth2URL.TOKEN_REVOKE;
+        val oAuth2URL = OAuth2URL.TOKEN_REVOKE
 
-		new OAuth2Action<Void>(this, Method.POST, oAuth2URL.getRouteWithBaseUrl()) {
-			@Override
-			protected Headers getHeaders() {
-				return Headers.of("Content-Type", "x-www-form-urlencoded");
-			}
+        return object : OAuth2Action<Unit>(this@OAuth2ClientImpl, Method.POST, oAuth2URL.routeWithBaseUrl) {
+            override val headers: Headers
+                get() = Headers.headersOf("Content-Type", "x-www-form-urlencoded")
 
-			@Override
-			protected RequestBody getBody() {
-				return RequestBody.create(oAuth2URL.compileQueryParams(clientId, clientSecret, session.getAccessToken()),
-					MediaType.parse("application/x-www-form-urlencoded"));
-			}
+            override val body: RequestBody
+                get() = oAuth2URL.compileQueryParams(
+                    id, secret, session.accessToken
+                ).toRequestBody("application/x-www-form-urlencoded".toMediaType())
 
-			@Override
-			protected Void handle(Response response) throws IOException {
-				if (!response.isSuccessful())
-					throw failure(response);
+            @Throws(IOException::class)
+            override fun handle(response: Response) {
+                if (!response.isSuccessful) throw failure(response)
+            }
+        }.queue()
+    }
 
-				return null;
-			}
-		}.queue();
-	}
+    override fun shutdown() {
+        httpClient.dispatcher.executorService.shutdown()
+    }
 
-	@Override
-	public long getId() {
-		return clientId;
-	}
+    // Generates an authorization header 'X Y', where 'X' is the session's
+    // token-type and 'Y' is the session's access token.
+    private fun generateAuthorizationHeader(session: Session): String {
+        return "${session.tokenType} ${session.accessToken}"
+    }
 
-	@Override
-	@NotNull
-	public String getSecret() {
-		return clientSecret;
-	}
+    private fun parseScopes(text: String): Array<Scope> {
+        return text.split(" ")
+            .filter { it.isNotEmpty() }
+            .map { Scope.from(it) }
+            .toTypedArray()
+    }
 
-	@Override
-	@NotNull
-	public StateController getStateController() {
-		return stateController;
-	}
-
-	@Override
-	@NotNull
-	public SessionController<? extends Session> getSessionController() {
-		return sessionController;
-	}
-
-	@Override
-	public void shutdown() {
-		httpClient.dispatcher().executorService().shutdown();
-	}
-
-	/**
-	 * Gets the internal OAuth2Requester used by this OAuth2Client.
-	 *
-	 * @return The internal OAuth2Requester used by this OAuth2Client.
-	 */
-	public OAuth2Requester getRequester() {
-		return requester;
-	}
-
-	protected static HttpException failure(Response response) throws IOException {
-		final InputStream stream = IOUtil.getBody(response);
-		final String responseBody = new String(IOUtil.readFully(stream));
-		return new HttpException("Request returned failure " + response.code() + ": " + responseBody);
-	}
-
-	// Generates an authorization header 'X Y', where 'X' is the session's
-	// token-type and 'Y' is the session's access token.
-	private String generateAuthorizationHeader(Session session) {
-		return String.format("%s %s", session.getTokenType(), session.getAccessToken());
-	}
-
-	private Scope[] parseScopes(String text) {
-		String[] scopeStrings = text.split(" ");
-		Scope[] scopes = new Scope[scopeStrings.length];
-		for (int i = 0; i < scopeStrings.length; i++) {
-			scopes[i] = Scope.from(scopeStrings[i]);
-		}
-		return scopes;
-	}
+    companion object {
+        @Throws(IOException::class)
+        fun failure(response: Response): HttpException {
+            val stream = IOUtil.getBody(response)
+            val responseBody = String(IOUtil.readFully(stream))
+            return HttpException("Request returned failure ${response.code}: $responseBody")
+        }
+    }
 }

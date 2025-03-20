@@ -1,90 +1,86 @@
-package dev.fileeditor.oauth2.requests;
+package dev.fileeditor.oauth2.requests
 
-import net.dv8tion.jda.internal.utils.JDALogger;
-import okhttp3.*;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
+import net.dv8tion.jda.internal.utils.JDALogger
+import okhttp3.*
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.slf4j.Logger
+import java.io.IOException
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.function.Consumer
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
+class OAuth2Requester(private val httpClient: OkHttpClient) {
+    fun <T> submitAsync(request: OAuth2Action<T>, success: Consumer<T>, failure: Consumer<Throwable>) {
+        httpClient.newCall(request.buildRequest()).enqueue(object : Callback {
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    response.use {
+                        val value: T? = request.handle(response)
+                        logSuccessfulRequest(request)
 
-public class OAuth2Requester {
-	protected static final Logger LOGGER = JDALogger.getLog(OAuth2Requester.class);
-	protected static final String USER_AGENT = "OAuth2 Util (git @fileeditor97)";
-	protected static final RequestBody EMPTY_BODY = RequestBody.create(new byte[0]);
+                        // Handle end-user exception differently
+                        try {
+                            if (value != null) {
+                                success.accept(value)
+                            }
+                        } catch (t: Throwable) {
+                            LOGGER.error("OAuth2Action success callback threw an exception!", t)
+                        }
+                    }
+                } catch (t: Throwable) {
+                    // Handle end-user exception differently
+                    try {
+                        failure.accept(t)
+                    } catch (t1: Throwable) {
+                        LOGGER.error("OAuth2Action success callback threw an exception!", t1)
+                    }
+                }
+            }
 
-	private final OkHttpClient httpClient;
+            override fun onFailure(call: Call, e: IOException) {
+                LOGGER.error("Requester encountered an error when submitting a request!", e)
+            }
+        })
+    }
 
-	public OAuth2Requester(OkHttpClient httpClient) {
-		this.httpClient = httpClient;
-	}
+    @Throws(IOException::class)
+    fun <T> submitSync(request: OAuth2Action<T>): T {
+        httpClient.newCall(request.buildRequest()).execute().use { response ->
+            val value = request.handle(response)
+            logSuccessfulRequest(request)
+            return value
+        }
+    }
 
-	<T> void submitAsync(OAuth2Action<T> request, Consumer<T> success, Consumer<Throwable> failure) {
-		httpClient.newCall(request.buildRequest()).enqueue(new Callback() {
-			@Override
-			public void onResponse(@NotNull Call call, @NotNull Response response) {
-				try (response) {
-					T value = request.handle(response);
-					logSuccessfulRequest(request);
+    fun <T> submit(request: OAuth2Action<T>): CompletableFuture<T> {
+        val callback = OkHttpResponseFuture()
+        httpClient.newCall(request.buildRequest()).enqueue(callback)
 
-					// Handle end-user exception differently
-					try {
-						if (value != null) {
-							success.accept(value);
-						}
-					} catch (Throwable t) {
-						LOGGER.error("OAuth2Action success callback threw an exception!", t);
-					}
-				} catch (Throwable t) {
-					// Handle end-user exception differently
-					try {
-						failure.accept(t);
-					} catch (Throwable t1) {
-						LOGGER.error("OAuth2Action success callback threw an exception!", t1);
-					}
-				}
-			}
+        return callback.future.thenApply { response: Response ->
+            try {
+                response.use {
+                    val value: T? = request.handle(response)
+                    logSuccessfulRequest(request)
 
-			@Override
-			public void onFailure(@NotNull Call call, @NotNull IOException e) {
-				LOGGER.error("Requester encountered an error when submitting a request!", e);
-			}
-		});
-	}
+                    if (value == null) throw NullPointerException("Value not found!")
+                    return@thenApply value
+                }
+            } catch (t: Throwable) {
+                throw CompletionException(t)
+            }
+        }
+    }
 
-	@Nullable
-	<T> T submitSync(OAuth2Action<T> request) throws IOException {
-		try (Response response = httpClient.newCall(request.buildRequest()).execute()) {
-			T value = request.handle(response);
-			logSuccessfulRequest(request);
-			return value;
-		}
-	}
+    companion object {
+        val LOGGER: Logger = JDALogger.getLog(OAuth2Requester::class.java)
+        const val USER_AGENT: String = "OAuth2 Util (git @fileeditor97)"
+        val EMPTY_BODY: RequestBody = ByteArray(0).toRequestBody()
 
-	@NotNull
-	<T> CompletableFuture<T> submit(OAuth2Action<T> request) {
-		OkHttpResponseFuture callback = new OkHttpResponseFuture();
-		httpClient.newCall(request.buildRequest()).enqueue(callback);
-
-		return callback.future.thenApply(response -> {
-			try (response) {
-				T value = request.handle(response);
-				logSuccessfulRequest(request);
-
-				if (value == null)
-					throw new NullPointerException("Value not found!");
-				return value;
-			} catch (Throwable t) {
-				throw new CompletionException(t);
-			}
-		});
-	}
-
-	private static <T> void logSuccessfulRequest(OAuth2Action<T> request) {
-		LOGGER.debug("Got a response for {} - {}\nHeaders: {}", request.getMethod(),
-			request.getUrl(), request.getHeaders());
-	}
+        private fun <T> logSuccessfulRequest(request: OAuth2Action<T>) {
+            LOGGER.debug(
+                "Got a response for {} - {}\nHeaders: {}", request.method,
+                request.url, request.headers
+            )
+        }
+    }
 }

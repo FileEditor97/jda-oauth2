@@ -3,6 +3,7 @@ package dev.fileeditor.oauth2.entities
 import dev.fileeditor.oauth2.OAuth2Client
 import dev.fileeditor.oauth2.session.Session
 import net.dv8tion.jda.api.JDA
+import net.dv8tion.jda.api.entities.ISnowflake
 import net.dv8tion.jda.api.entities.User
 import net.dv8tion.jda.api.sharding.ShardManager
 import net.dv8tion.jda.api.utils.ImageProxy
@@ -13,7 +14,7 @@ import java.awt.Color
  * <br></br>More specifically, this is the User that the session is currently managing when retrieved using
  * [OAuth2Client#getUser][dev.fileeditor.oauth2.OAuth2Client.getUser].
  */
-interface OAuth2User {
+interface OAuth2User : ISnowflake {
     /**
      * Gets the underlying [OAuth2Client]
      * that created this OAuth2User.
@@ -29,21 +30,6 @@ interface OAuth2User {
      * @return The Session responsible for this OAuth2User.
      */
     val session: Session
-
-    val id: String
-        /**
-         * Gets the user's Snowflake ID as a String.
-         *
-         * @return The user's Snowflake ID as a String.
-         */
-        get() = idLong.toString()
-
-    /**
-     * Gets the user's Snowflake ID as a `long`.
-     *
-     * @return The user's Snowflake ID as a `long`.
-     */
-    val idLong: Long
 
     /**
      * The username of the User. Length is between 2 and 32 characters (inclusive).
@@ -83,7 +69,7 @@ interface OAuth2User {
      * @return The user's email.
      *
      * @throws dev.fileeditor.oauth2.exceptions.MissingScopeException
-     * If the corresponding [session][OAuth2User.getSession] does not have the
+     * If the corresponding [session][OAuth2User.session] does not have the
      * proper 'email' OAuth2 scope
      */
     val email: String?

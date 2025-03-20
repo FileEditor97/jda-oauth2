@@ -10,7 +10,7 @@ import net.dv8tion.jda.api.sharding.ShardManager
 class OAuth2UserImpl(
     override val client: OAuth2Client,
     override val session: Session,
-    override val idLong: Long,
+    private val id: Long,
     override val name: String,
     override val globalName: String?,
     override val avatarId: String?,
@@ -21,6 +21,10 @@ class OAuth2UserImpl(
     override val accentColorRaw: Int = OAuth2User.DEFAULT_ACCENT_COLOR_RAW,
     override val locale: String = "en-US"
 ) : OAuth2User {
+    override fun getIdLong(): Long {
+        return id
+    }
+
     override fun getJDAUser(jda: JDA): User? {
         return jda.getUserById(idLong)
     }
