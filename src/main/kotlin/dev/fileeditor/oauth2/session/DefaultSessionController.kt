@@ -24,33 +24,11 @@ class DefaultSessionController : SessionController<DefaultSession> {
         sessions.remove(identifier)
     }
 
-    inner class DefaultSession : Session {
-        override val accessToken: String
-        override val refreshToken: String
-        override val tokenType: String
-        override val expiration: OffsetDateTime
-        override val scopes: Array<Scope>
-
-        private constructor(
-            accessToken: String,
-            refreshToken: String,
-            tokenType: String,
-            expiration: OffsetDateTime,
-            scopes: Array<Scope>
-        ) {
-            this.accessToken = accessToken
-            this.refreshToken = refreshToken
-            this.tokenType = tokenType
-            this.expiration = expiration
-            this.scopes = scopes
-        }
-
-        constructor(data: SessionData) {
-            this.accessToken = data.accessToken
-            this.refreshToken = data.refreshToken
-            this.tokenType = data.tokenType
-            this.expiration = data.expiration
-            this.scopes = data.scopes
-        }
+    inner class DefaultSession(data: SessionData) : Session {
+        override val accessToken: String = data.accessToken
+        override val refreshToken: String = data.refreshToken
+        override val tokenType: String = data.tokenType
+        override val expiration: OffsetDateTime = data.expiration
+        override val scopes: Array<Scope> = data.scopes
     }
 }

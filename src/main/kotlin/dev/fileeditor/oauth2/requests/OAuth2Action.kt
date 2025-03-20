@@ -24,7 +24,7 @@ import java.util.function.Consumer
  * @author Kaidan Gustave
  */
 abstract class OAuth2Action<T>(client: OAuth2ClientImpl, method: Method, url: String) {
-    protected val defaultSuccess: Consumer<T> = Consumer {}
+    private val defaultSuccess: Consumer<T> = Consumer {}
 
     /**
      * Gets the [client][dev.fileeditor.oauth2.OAuth2Client] responsible
@@ -32,7 +32,7 @@ abstract class OAuth2Action<T>(client: OAuth2ClientImpl, method: Method, url: St
      *
      * @return The OAuth2Client responsible for creating this.
      */
-    val client: OAuth2ClientImpl
+    private val client: OAuth2ClientImpl
 	val method: Method
 	val url: String
 
@@ -49,7 +49,7 @@ abstract class OAuth2Action<T>(client: OAuth2ClientImpl, method: Method, url: St
     open val body: RequestBody
         get() = OAuth2Requester.EMPTY_BODY
 
-    open val headers: Headers?
+    open val headers: Headers
         get() = Headers.headersOf()
 
     fun buildRequest(): Request {
@@ -63,7 +63,7 @@ abstract class OAuth2Action<T>(client: OAuth2ClientImpl, method: Method, url: St
 
         builder.url(url)
         builder.header("User-Agent", OAuth2Requester.USER_AGENT)
-        builder.headers(headers!!)
+        builder.headers(headers)
 
         return builder.build()
     }
@@ -100,7 +100,7 @@ abstract class OAuth2Action<T>(client: OAuth2ClientImpl, method: Method, url: St
      * Submits a Request for execution and provides a CompletableFuture representing its completion task.
      * Cancelling the returned Future will result in the cancellation of the Request!
      *
-     * @return CompletableFuture to be used.z
+     * @return CompletableFuture to be used.
      */
     fun future(): CompletableFuture<T> {
         return client.requester.submit(this)

@@ -147,7 +147,7 @@ class OAuth2ClientImpl(
     @Throws(MissingScopeException::class)
     override fun getGuilds(session: Session): OAuth2Action<List<OAuth2Guild>> {
         Checks.notNull(session, "session")
-        if (!Scope.contains(session.scopes, Scope.GUILDS)) throw MissingScopeException(
+        if (!session.scopes.contains(Scope.GUILDS)) throw MissingScopeException(
             "get guilds for a Session",
             Scope.GUILDS
         )

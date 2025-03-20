@@ -68,18 +68,6 @@ enum class Scope(@JvmField val text: String) {
     UNKNOWN("");
 
     companion object {
-        fun contains(scopes: Array<Scope>?, target: Scope?): Boolean {
-            if (scopes.isNullOrEmpty() || target == null || target == UNKNOWN) {
-                return false
-            }
-            for (scope in scopes) {
-                if (scope == target) {
-                    return true
-                }
-            }
-            return false
-        }
-
 		fun join(vararg scopes: Scope): String {
             return join(false, *scopes)
         }
