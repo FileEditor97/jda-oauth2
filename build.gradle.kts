@@ -1,7 +1,8 @@
 plugins {
-    id("java-library")
+    kotlin("jvm") version "2.1.10"
     // https://mvnrepository.com/artifact/com.gradleup.shadow/shadow-gradle-plugin
-    id("com.gradleup.shadow") version "9.0.0-beta8"
+    id("com.gradleup.shadow") version "9.0.0-beta11"
+    id("org.jetbrains.dokka") version "2.0.0"
 }
 
 group = "dev.fileeditor"
@@ -25,6 +26,10 @@ java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
     withSourcesJar()
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 tasks.jar {
