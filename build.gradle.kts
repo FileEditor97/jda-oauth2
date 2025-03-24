@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.1.10"
     // https://mvnrepository.com/artifact/com.gradleup.shadow/shadow-gradle-plugin
-    id("com.gradleup.shadow") version "9.0.0-beta8"
+    id("com.gradleup.shadow") version "9.0.0-beta11"
     id("org.jetbrains.dokka") version "2.0.0"
 }
 
@@ -20,10 +20,11 @@ dependencies {
     compileOnly("com.squareup.okhttp3:okhttp:5.0.0-alpha.14")
     // https://mvnrepository.com/artifact/org.json/json
     compileOnly("org.json:json:20250107")
-    implementation(kotlin("stdlib-jdk8"))
 }
 
 java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
     withSourcesJar()
 }
 

@@ -89,12 +89,14 @@ interface OAuth2Guild : ISnowflake {
     fun hasPermission(vararg perms: Permission): Boolean
 
     /**
-     * @return the approximate count of online members in the guild, or -1 if flag not set
+     * @return the approximate count of online members in the guild,
+     * or -1 if Scope [GUILDS_MEMBERS][dev.fileeditor.oauth2.Scope.GUILDS_MEMBERS] not set
      */
     val onlineCount: Int
 
     /**
-     * @return the approximate count of total members in the guild, or -1 if flag not set
+     * @return the approximate count of total members in the guild,
+     * or -1 if Scope [GUILDS_MEMBERS][dev.fileeditor.oauth2.Scope.GUILDS_MEMBERS] not set
      */
     val memberCount: Int
 }
