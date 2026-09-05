@@ -1,12 +1,12 @@
 plugins {
-    kotlin("jvm") version "2.1.10"
+    id("org.jetbrains.kotlin.jvm") version "2.4.10"
     // https://mvnrepository.com/artifact/com.gradleup.shadow/shadow-gradle-plugin
-    id("com.gradleup.shadow") version "9.0.0-beta11"
-    id("org.jetbrains.dokka") version "2.0.0"
+    id("com.gradleup.shadow") version "9.6.1"
+    id("org.jetbrains.dokka") version "2.2.0"
 }
 
 group = "dev.fileeditor"
-version = "1.0.0"
+version = "1.1.0"
 
 repositories {
     mavenCentral()
@@ -14,12 +14,12 @@ repositories {
 
 dependencies {
     // https://mvnrepository.com/artifact/net.dv8tion/JDA
-    compileOnly("net.dv8tion:JDA:5.3.0")
+    compileOnly("net.dv8tion:JDA:6.5.0")
 
     // https://mvnrepository.com/artifact/com.squareup.okhttp3/okhttp
-    compileOnly("com.squareup.okhttp3:okhttp:5.0.0-alpha.14")
+    compileOnly("com.squareup.okhttp3:okhttp:5.5.0")
     // https://mvnrepository.com/artifact/org.json/json
-    compileOnly("org.json:json:20250107")
+    compileOnly("org.json:json:20260814")
 }
 
 java {

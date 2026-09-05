@@ -20,11 +20,7 @@ class SessionData(
     override val scopes: Array<Scope>
 ) : Session {
     override fun equals(other: Any?): Boolean {
-        if (other !is SessionData) {
-            return false
-        }
-
-        return identifier == other.identifier
+	    return other is SessionData && identifier == other.identifier
     }
 
     override fun toString(): String {

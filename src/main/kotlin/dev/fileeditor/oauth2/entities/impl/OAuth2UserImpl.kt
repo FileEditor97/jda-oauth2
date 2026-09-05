@@ -34,8 +34,7 @@ class OAuth2UserImpl(
     }
 
     override fun equals(other: Any?): Boolean {
-        if (other !is OAuth2UserImpl) return false
-        return this === other || this.idLong == other.idLong
+	    return other is OAuth2UserImpl && (this === other || this.idLong == other.idLong)
     }
 
     override fun hashCode(): Int {

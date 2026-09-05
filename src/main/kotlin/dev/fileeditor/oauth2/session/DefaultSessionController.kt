@@ -24,7 +24,7 @@ class DefaultSessionController : SessionController<DefaultSession> {
         sessions.remove(identifier)
     }
 
-    inner class DefaultSession(data: SessionData) : Session {
+    class DefaultSession(data: SessionData) : Session {
         override val accessToken: String = data.accessToken
         override val refreshToken: String = data.refreshToken
         override val tokenType: String = data.tokenType
